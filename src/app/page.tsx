@@ -16,10 +16,13 @@ import { Copy, RefreshCw, ArrowLeft, ArrowRight, Undo2, History, ChevronDown } f
 
 // Add this new component for the thinking animation
 const ThinkingAnimation = () => (
-  <div className="flex items-center space-x-2 p-3">
-    <span className="h-2 w-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
-    <span className="h-2 w-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
-    <span className="h-2 w-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse" style={{ animationDelay: '600ms' }}></span>
+  <div className="flex items-center space-x-2 p-2">
+    <div className="flex space-x-1.5">
+      <span className="h-2 w-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
+      <span className="h-2 w-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
+      <span className="h-2 w-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '600ms' }}></span>
+    </div>
+    <span className="text-gray-500 dark:text-gray-400 text-xs">AI is thinking...</span>
   </div>
 );
 
