@@ -6,11 +6,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { Sidebar } from '@/components/Sidebar';
 import { ChatInput } from '@/components/ChatInput';
 import { storage } from '@/lib/storage';
-import { Chat, Message, Model, Settings } from '@/types/chat';
+import { Chat, Message, Model, Settings, AIResponseVersion, MessageWithVersions, SetMessagesAction, SetChatsAction, ensureMessage, hasVersions, convertAIMessage, convertToAIMessage, ensureChat, setStateAction } from '@/types/chat';
 import { useRouter } from 'next/navigation';
 import { providers } from '@/lib/providers';
 import { toast } from 'sonner';
 import { MarkdownContent } from '@/components/MarkdownContent';
+import { Button } from '@/components/ui/button';
+import { Copy, RefreshCw, ArrowLeft, ArrowRight, Undo2, History, ChevronDown } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
@@ -35,6 +37,11 @@ export default function Home() {
   // Add a ref to track if we've navigated to settings before
   const hasNavigatedToSettings = useRef(false);
   const reloadKeys = useRef(false);
+
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  // Add this before the return statement
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   useEffect(() => {
     const savedChats = storage.getChats();
@@ -110,14 +117,14 @@ export default function Home() {
         const lastSelectedChat = savedChats.find(chat => chat.id === lastSelectedChatId);
         if (lastSelectedChat?.messages) {
           // Restore messages from the saved chat
-          setUIMessages(lastSelectedChat.messages);
+          setMessages(lastSelectedChat.messages);
         }
       } else {
         // If no last selected chat or it doesn't exist anymore, select the first chat
         console.log('[Home] Setting first chat as selected');
         setSelectedChatId(savedChats[0].id);
         if (savedChats[0]?.messages) {
-          setUIMessages(savedChats[0].messages);
+          setMessages(savedChats[0].messages);
         }
       }
     }
@@ -407,7 +414,7 @@ export default function Home() {
     hasApiKey: !!chatParams.body.apiKey
   });
   
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat(chatParams);
+  const { input, handleInputChange, handleSubmit, isLoading, setMessages: useChatSetMessages } = useChat(chatParams);
   
   // Store previous messages to handle model switching
   const [uiMessages, setUIMessages] = useState<any[]>([]);
@@ -425,13 +432,13 @@ export default function Home() {
       const selectedChat = chats.find((chat) => chat.id === selectedChatId);
       if (selectedChat) {
         console.log('[Home] Loading messages for selected chat:', selectedChatId);
-        setMessages(selectedChat.messages || []);
+        useChatSetMessages(selectedChat.messages || []);
       }
     } else {
       console.log('[Home] No chat selected, clearing messages');
-      setMessages([]);
+      useChatSetMessages([]);
     }
-  }, [selectedChatId, chats, setMessages]);
+  }, [selectedChatId, chats, useChatSetMessages]);
 
   // Update body params when model changes
   useEffect(() => {
@@ -440,9 +447,9 @@ export default function Home() {
     // When model changes, ensure we keep the current UI messages
     if (uiMessages.length > 0) {
       console.log('[Home] Preserving current UI messages after model change');
-      setMessages(uiMessages);
+      useChatSetMessages(uiMessages);
     }
-  }, [selectedModelWithApiKey, setMessages, uiMessages]);
+  }, [selectedModelWithApiKey, useChatSetMessages, uiMessages]);
 
   const handleNewChat = () => {
     // Reset UI messages when creating a new chat
@@ -484,7 +491,7 @@ export default function Home() {
     // If we're deleting the currently selected chat
     if (selectedChatId === chatId) {
       // Clear messages from UI immediately
-      setMessages([]);
+      useChatSetMessages([]);
       setUIMessages([]);
       
       // If there are other chats, select the first one
@@ -496,7 +503,7 @@ export default function Home() {
         // Load the messages for the newly selected chat
         const newSelectedChat = updatedChats.find(chat => chat.id === newSelectedId);
         if (newSelectedChat) {
-          setMessages(newSelectedChat.messages || []);
+          useChatSetMessages(newSelectedChat.messages || []);
           setUIMessages(newSelectedChat.messages || []);
         }
       } else {
@@ -530,7 +537,8 @@ export default function Home() {
     setEditingChatId(null);
   };
 
-  const handleSendMessage = async (message: string) => {
+  // Update handleSendMessage to accept targetMessageId for rewrites
+  const handleSendMessage = async (message: string, targetMessageId?: string) => {
     console.log('[Home] handleSendMessage called', { 
       messageLength: message.length,
       hasSelectedModelWithApiKey: !!selectedModelWithApiKey,
@@ -554,7 +562,7 @@ export default function Home() {
     
     try {
       // Create the user message
-      const chatMessage = {
+      const userMessage = {
         id: uuidv4(),
         content: message,
         role: 'user' as const,
@@ -562,29 +570,23 @@ export default function Home() {
       };
       
       let newChatId = selectedChatId;
-      let newlyCreatedChat = false;
-      let currentMessages = [];
-      let newChatObject: Chat | null = null; // Store a reference to the newly created chat
+      let currentMessages: Message[] = [];
       
       // Create a new chat if needed
       if (selectedChatId === '') {
         console.log('[Home] No chat selected, creating new chat');
         const chatId = uuidv4();
         newChatId = chatId;
-        newlyCreatedChat = true;
         
         // Create new chat with the message
         const newChat: Chat = {
           id: chatId,
           title: generateChatTitle(message),
-          messages: [chatMessage], // Include the message directly in the new chat
+          messages: [userMessage],
           createdAt: new Date(),
           updatedAt: new Date(),
           modelId: selectedModelWithApiKey.id,
         };
-        
-        // Store reference to the newly created chat
-        newChatObject = newChat;
         
         // Add the new chat to the list
         const updatedChats = [newChat, ...chats];
@@ -593,33 +595,25 @@ export default function Home() {
         
         // Set the selected chat ID immediately
         setSelectedChatId(chatId);
-        
-        // Set the current messages for UI update
-        currentMessages = [chatMessage];
-        
-        console.log('[Home] New chat created with ID:', chatId, 'and message:', message);
-        
-        // Add a small delay to let state update
-        await new Promise(resolve => setTimeout(resolve, 100));
+        currentMessages = [userMessage];
       } else {
         // Add to the existing chat
         console.log('[Home] Adding user message to existing chat', { chatId: newChatId });
         
-        // Get the existing chat's messages
+        // Get the existing chat's messages and add the new user message
         const existingChat = chats.find(chat => chat.id === newChatId);
         if (!existingChat) {
           throw new Error(`Chat with ID ${newChatId} not found`);
         }
         
-        const updatedMessages = [...existingChat.messages, chatMessage];
-        currentMessages = updatedMessages;
+        currentMessages = [...existingChat.messages, userMessage];
         
         // Update the chat with the new message
         const updatedChats = chats.map((chat) =>
           chat.id === newChatId
             ? {
                 ...chat,
-                messages: updatedMessages,
+                messages: currentMessages,
                 updatedAt: new Date(),
               }
             : chat
@@ -627,13 +621,10 @@ export default function Home() {
         
         setChats(updatedChats);
         storage.saveChats(updatedChats);
-        console.log('[Home] User message saved to localStorage');
       }
 
       // Update the UI with the user message
-      setMessages([...currentMessages]);
-      // Also update our UI message tracking state
-      setUIMessages([...currentMessages]);
+      setMessages(currentMessages);
       
       // Add a loading message that will be updated with actual content
       const aiMessageId = uuidv4();
@@ -642,20 +633,15 @@ export default function Home() {
         content: '',
         role: 'assistant' as const,
         createdAt: new Date(),
-        isLoading: true, // This property helps us track loading state per message
+        isLoading: true,
       };
       
       // Show the loading message in the UI
       const messagesWithLoadingIndicator = [...currentMessages, loadingMessage];
       setMessages(messagesWithLoadingIndicator);
-      setUIMessages(messagesWithLoadingIndicator);
       
       // Send message to AI using the API directly
-      console.log('[Home] Sending message to API directly');
-      
-      // Get previous messages from the chat if this is not a new chat
-      const previousMessages = newlyCreatedChat ? [] : 
-        chats.find(chat => chat.id === newChatId)?.messages.slice(0, -1) || [];
+      console.log('[Home] Sending message to API');
       
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -664,11 +650,10 @@ export default function Home() {
         },
         body: JSON.stringify({
           messages: [
-            ...previousMessages,
-            {
-              content: message,
-              role: 'user',
-            }
+            ...currentMessages.map(m => ({
+              content: m.content,
+              role: m.role,
+            }))
           ],
           model: {
             id: selectedModelWithApiKey.id,
@@ -682,7 +667,6 @@ export default function Home() {
         throw new Error(`API error: ${response.status}`);
       }
       
-      // Handle streaming response
       const reader = response.body?.getReader();
       if (!reader) {
         throw new Error('No response body');
@@ -691,101 +675,57 @@ export default function Home() {
       let aiMessageContent = '';
       
       // Stream the response
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          
-          if (done) {
-            break;
-          }
-          
-          // Decode the chunk
-          const text = new TextDecoder().decode(value);
-          aiMessageContent += text;
-          
-          // Update the AI message in the UI, keeping the isLoading flag
-          const updatedAiMessages = messagesWithLoadingIndicator.map(m => 
-            m.id === aiMessageId 
-              ? { ...m, content: aiMessageContent, isLoading: true } 
-              : m
-          );
-          setMessages(updatedAiMessages);
-          setUIMessages(updatedAiMessages);
-        }
+      while (true) {
+        const { done, value } = await reader.read();
         
-        // Save the completed AI response to localStorage with isLoading set to false
-        const finalAiMessage = {
-          id: aiMessageId,
-          content: aiMessageContent,
-          role: 'assistant' as const,
-          createdAt: new Date(),
-          isLoading: false, // Message is complete, no longer loading
-        };
+        if (done) break;
         
-        // Update UI to show the complete message without loading state
-        const finalMessages = messagesWithLoadingIndicator.map(m => 
-          m.id === aiMessageId ? finalAiMessage : m
+        // Decode the chunk
+        const text = new TextDecoder().decode(value);
+        aiMessageContent += text;
+        
+        // Update the UI with the streaming content
+        const updatedMessages = messagesWithLoadingIndicator.map(m => 
+          m.id === aiMessageId 
+            ? { ...m, content: aiMessageContent, isLoading: true } 
+            : m
         );
-        setMessages(finalMessages);
-        setUIMessages(finalMessages);
-        
-        // Get the current chat list again to ensure we have the latest state
-        const currentChats = [...chats];
-        
-        // Find the chat we're working with - first try to use our direct reference
-        let chatToUpdate = newlyCreatedChat && newChatObject ? 
-          newChatObject : currentChats.find(chat => chat.id === newChatId);
-        
-        if (chatToUpdate) {
-          // Update the chat with both the user message and AI response
-          const updatedChats = currentChats.map((chat) =>
-            chat.id === newChatId
-              ? {
-                  ...chat,
-                  messages: [...(newlyCreatedChat ? [chatMessage] : chat.messages), {
-                    id: aiMessageId,
-                    content: aiMessageContent,
-                    role: 'assistant' as const,
-                    createdAt: finalAiMessage.createdAt
-                  }],
-                  updatedAt: new Date(),
-                }
-              : chat
-          );
-          
-          // For newly created chats, we may need to add the chat if it's not found in currentChats
-          if (newlyCreatedChat && !currentChats.some(chat => chat.id === newChatId) && newChatObject) {
-            // Add the AI message to the new chat
-            const updatedNewChat = {
-              ...newChatObject,
-              messages: [...newChatObject.messages, {
-                id: aiMessageId,
-                content: aiMessageContent,
-                role: 'assistant' as const,
-                createdAt: finalAiMessage.createdAt
-              }],
-              updatedAt: new Date()
-            };
-            
-            // Add to the beginning of the chat list
-            updatedChats.unshift(updatedNewChat);
-          }
-          
-          // Update state and storage
-          setChats(updatedChats);
-          storage.saveChats(updatedChats);
-          
-          // Ensure the last selected chat ID is persisted
-          localStorage.setItem('lastSelectedChatId', newChatId);
-          
-          console.log('[Home] AI response completed and saved to chat:', newChatId);
-        } else {
-          console.error('[Home] Could not find chat to update:', newChatId);
-        }
-      } catch (error) {
-        console.error('[Home] Error streaming response:', error);
-        toast.error('Error streaming AI response');
+        setMessages(updatedMessages);
       }
+      
+      // After streaming is complete, save the final message
+      const finalAiMessage = {
+        id: aiMessageId,
+        content: aiMessageContent,
+        role: 'assistant' as const,
+        createdAt: new Date(),
+        isLoading: false,
+        versions: [{
+          id: uuidv4(),
+          content: aiMessageContent,
+          createdAt: new Date()
+        }],
+        currentVersionIndex: 0
+      };
+      
+      // Update UI with the complete message
+      const finalMessages = [...currentMessages, finalAiMessage];
+      setMessages(finalMessages);
+      
+      // Update the chat in storage
+      const updatedChats = chats.map((chat) =>
+        chat.id === newChatId
+          ? {
+              ...chat,
+              messages: finalMessages,
+              updatedAt: new Date(),
+            }
+          : chat
+      );
+      
+      setChats(updatedChats);
+      storage.saveChats(updatedChats);
+      localStorage.setItem('lastSelectedChatId', newChatId);
       
     } catch (error) {
       console.error('[Home] Error in handleSendMessage:', error);
@@ -816,7 +756,7 @@ export default function Home() {
     if (selectedChatId !== '' && !chats.some(chat => chat.id === selectedChatId)) {
       console.log('[Home] Selected chat no longer exists, resetting state');
       // Clear UI
-      setMessages([]);
+      useChatSetMessages([]);
       setUIMessages([]);
       
       // If there are other chats, select the first one
@@ -829,7 +769,7 @@ export default function Home() {
         // Load the messages for the newly selected chat
         const newSelectedChat = chats.find(chat => chat.id === newSelectedId);
         if (newSelectedChat) {
-          setMessages(newSelectedChat.messages || []);
+          useChatSetMessages(newSelectedChat.messages || []);
           setUIMessages(newSelectedChat.messages || []);
         }
       } else {
@@ -839,7 +779,7 @@ export default function Home() {
         localStorage.removeItem('lastSelectedChatId');
       }
     }
-  }, [chats, selectedChatId]);
+  }, [chats, selectedChatId, useChatSetMessages]);
 
   // Add a navigation listener to detect when we're returning from settings page
   useEffect(() => {
@@ -900,6 +840,253 @@ export default function Home() {
     console.log('[Home] Navigation push method called');
   };
 
+  // Update the version navigation code
+  const handleVersionNavigation = (message: Message) => {
+    if (!hasVersions(message)) return;
+
+    const nextIndex = (message.currentVersionIndex + 1) % message.versions.length;
+
+    const updatedChats = chats.map(chat => ensureChat({
+      ...chat,
+      messages: chat.messages.map(m => {
+        if (m.id === message.id) {
+          return ensureMessage({
+            ...m,
+            content: message.versions[nextIndex].content,
+            currentVersionIndex: nextIndex
+          });
+        }
+        return m;
+      })
+    }));
+
+    setChats(updatedChats);
+  };
+
+  // Update the streaming response handling in handleSendMessage
+  const handleStreamingResponse = async (
+    response: ReadableStream,
+    selectedChat: Chat,
+    userMessage: Message,
+    selectedModel: Model
+  ) => {
+    const reader = response.getReader();
+    const decoder = new TextDecoder();
+    let accumulatedContent = '';
+
+    const newMessage = ensureMessage({
+      id: uuidv4(),
+      role: 'assistant',
+      content: '',
+      isLoading: true
+    });
+
+    setMessages([...messages, newMessage]);
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        accumulatedContent += chunk;
+
+        const updatedMessages = messages.map((m, i) => 
+          i === messages.length - 1 ? { ...m, content: accumulatedContent } : m
+        );
+        setMessages(updatedMessages);
+      }
+
+      const finalMessages = messages.map((m, i) => 
+        i === messages.length - 1 ? { ...m, isLoading: false } : m
+      );
+      setMessages(finalMessages);
+
+      const newVersionedMessage = ensureMessage({
+        id: newMessage.id,
+        role: 'assistant',
+        content: accumulatedContent,
+        versions: [{
+          id: uuidv4(),
+          content: accumulatedContent,
+          createdAt: new Date()
+        }],
+        currentVersionIndex: 0
+      });
+
+      const updatedChats = chats.map(chat => {
+        if (chat.id === selectedChat.id) {
+          return ensureChat({
+            ...chat,
+            messages: [...chat.messages, newVersionedMessage],
+            updatedAt: new Date()
+          });
+        }
+        return chat;
+      });
+
+      setChats(updatedChats);
+      localStorage.setItem('chats', JSON.stringify(updatedChats));
+    } catch (error) {
+      console.error('Error reading stream:', error);
+    }
+  };
+
+  const handleRewrite = async (message: Message, userMessage: Message) => {
+    if (!selectedModelWithApiKey) {
+      toast.error('Please select a model first');
+      return;
+    }
+
+    // Initialize versions array if it doesn't exist
+    const updatedMessage = {
+      ...message,
+      versions: message.versions || [{
+        id: uuidv4(),
+        content: message.content,
+        createdAt: new Date()
+      }],
+      currentVersionIndex: (message.versions?.length || 0)
+    };
+
+    // Update the message in the UI immediately to show it's being rewritten
+    const updatedMessages = messages.map(m =>
+      m.id === message.id ? { ...updatedMessage, isLoading: true } : m
+    );
+    setMessages(updatedMessages);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'user', content: userMessage.content }
+          ],
+          model: {
+            id: selectedModelWithApiKey.id,
+            provider: selectedModelWithApiKey.provider,
+          },
+          apiKey: selectedModelWithApiKey.apiKey
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate response');
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      let accumulatedContent = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = new TextDecoder().decode(value);
+        accumulatedContent += chunk;
+
+        // Update the message content as it streams in
+        const streamingMessages = messages.map(m =>
+          m.id === message.id ? {
+            ...updatedMessage,
+            content: accumulatedContent,
+            isLoading: true
+          } : m
+        );
+        setMessages(streamingMessages);
+      }
+
+      // Create the new version with the complete content
+      const newVersion = {
+        id: uuidv4(),
+        content: accumulatedContent,
+        createdAt: new Date()
+      };
+
+      // Update the message with the new version
+      const finalMessage = {
+        ...updatedMessage,
+        content: accumulatedContent,
+        versions: [...(updatedMessage.versions || []), newVersion],
+        currentVersionIndex: (updatedMessage.versions?.length || 0),
+        isLoading: false
+      };
+
+      // Update messages in state
+      const finalMessages = messages.map(m =>
+        m.id === message.id ? finalMessage : m
+      );
+      setMessages(finalMessages);
+
+      // Update the chat in storage
+      const updatedChats = chats.map(chat => ({
+        ...chat,
+        messages: chat.messages.map(m =>
+          m.id === message.id ? finalMessage : m
+        )
+      }));
+      setChats(updatedChats);
+      storage.saveChats(updatedChats);
+
+    } catch (error) {
+      console.error('Error in handleRewrite:', error);
+      toast.error('Failed to rewrite message');
+      
+      // Reset the message to its original state
+      const resetMessages = messages.map(m =>
+        m.id === message.id ? { ...message, isLoading: false } : m
+      );
+      setMessages(resetMessages);
+    }
+  };
+
+  // Add this function before the return statement
+  const handleVersionSelect = (message: Message, versionIndex: number) => {
+    if (!hasVersions(message)) return;
+
+    // Create updated message with new version content
+    const updatedMessage = {
+      ...message,
+      content: message.versions[versionIndex].content,
+      currentVersionIndex: versionIndex
+    };
+
+    // Update messages in UI
+    const updatedMessages = messages.map(m =>
+      m.id === message.id ? updatedMessage : m
+    );
+    setMessages(updatedMessages);
+
+    // Update chats in storage
+    const updatedChats = chats.map(chat => ({
+      ...chat,
+      messages: chat.messages.map(m =>
+        m.id === message.id ? updatedMessage : m
+      )
+    }));
+
+    setChats(updatedChats);
+    storage.saveChats(updatedChats);
+  };
+
+  // Update the click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openDropdownId) {
+        setOpenDropdownId(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openDropdownId]);
+
   return (
     <div className="flex h-screen bg-background text-foreground">
       <Sidebar
@@ -929,46 +1116,97 @@ export default function Home() {
               </button>
             </div>
           ) : (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                className={`mb-4 ${
-                  message.role === 'user' ? 'text-right' : 'text-left'
-                }`}
-              >
-                <div
-                  className={`inline-block p-3 rounded-lg backdrop-blur ${
-                    message.role === 'user'
-                      ? 'bg-primary/10 text-primary-foreground border border-primary/20'
-                      : 'bg-secondary/10 text-secondary-foreground border border-secondary/20'
-                  } shadow-xs transition-all`}
-                >
-                  {/* Show loading animation for AI messages that are still generating */}
-                  {message.role === 'assistant' && (message as any).isLoading && (
-                    <div className="mt-2">
-                      {message.content && (
-                        <div className="mb-2">
-                          <MarkdownContent content={message.content} />
-                          <span className="inline-block w-[2px] h-[16px] bg-zinc-400 ml-1 align-middle animate-pulse" />
+            messages.map((message, index) => (
+              <div key={message.id} className="flex flex-col space-y-2 mb-4">
+                <div className={`flex items-start ${message.role === 'user' ? 'justify-end' : ''}`}>
+                  <div className={`${message.role === 'user' ? 'ml-12' : 'mr-12'}`}>
+                    <div className={`prose dark:prose-invert inline-block p-3 rounded-lg ${
+                      message.role === 'user' 
+                        ? 'bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20' 
+                        : 'bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100 dark:border-gray-700/30'
+                    }`}>
+                      <MarkdownContent content={message.content} />
+                    </div>
+                  </div>
+                </div>
+                {message.role === 'assistant' && (
+                  <div className="flex items-center space-x-2 mt-1">
+                    <div className="flex items-center space-x-2 group">
+                      {hasVersions(message) && message.versions.length > 1 && (
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdownId(openDropdownId === message.id ? null : message.id);
+                            }}
+                            className="flex items-center space-x-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          >
+                            <History className="h-4 w-4" />
+                            <span className="text-sm">
+                              {(message.currentVersionIndex || 0) + 1}/{message.versions?.length}
+                            </span>
+                            <ChevronDown className="h-3 w-3 ml-0.5" />
+                          </button>
+                          {openDropdownId === message.id && (
+                            <div 
+                              className="absolute left-0 mt-1 w-40 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10"
+                            >
+                              <div className="py-1">
+                                {message.versions.map((version, index) => (
+                                  <button
+                                    key={version.id}
+                                    onClick={() => {
+                                      handleVersionSelect(message, index);
+                                      setOpenDropdownId(null);
+                                    }}
+                                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                                      index === message.currentVersionIndex ? 'bg-gray-50 dark:bg-gray-700' : ''
+                                    }`}
+                                  >
+                                    Version {index + 1}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
-                      <div className="flex items-center space-x-2">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                          <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                          <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                        </div>
-                        <span className="text-xs text-zinc-400 animate-pulse">AI is typing...</span>
-                      </div>
+                      <button
+                        onClick={() => {
+                          const button = document.getElementById(`copy-button-${message.id}`);
+                          if (button) {
+                            const icon = button.querySelector('svg');
+                            if (icon) {
+                              icon.innerHTML = '<path d="M20 6L9 17l-5-5"/>';
+                              icon.setAttribute('stroke-width', '3');
+                            }
+                            setTimeout(() => {
+                              if (icon) {
+                                icon.innerHTML = '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"></path>';
+                                icon.setAttribute('stroke-width', '2');
+                              }
+                            }, 500);
+                          }
+                          navigator.clipboard.writeText(message.content);
+                          toast.success('Copied to clipboard');
+                        }}
+                        id={`copy-button-${message.id}`}
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleRewrite(message, messages[index - 1])}
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </button>
+                      <span className="text-sm text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        Rewrite with {selectedModel?.name}
+                      </span>
                     </div>
-                  )}
-                  {message.role === 'assistant' && !(message as any).isLoading && (
-                    <MarkdownContent content={message.content} />
-                  )}
-                  {message.role === 'user' && (
-                    <MarkdownContent content={message.content} />
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             ))
           )}
