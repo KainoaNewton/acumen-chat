@@ -537,7 +537,47 @@ export default function Home() {
     setEditingChatId(null);
   };
 
-  // Update handleSendMessage to accept targetMessageId for rewrites
+  // Add this useEffect to ensure chat state is always synchronized
+  useEffect(() => {
+    // Only run this effect if we have a selectedChatId
+    if (selectedChatId === '') return;
+
+    // If the selected chat exists in our chats list, make sure messages are synced
+    const selectedChat = chats.find(chat => chat.id === selectedChatId);
+    if (selectedChat) {
+      // Ensure messages are in sync with the selected chat
+      if (selectedChat.messages?.length > 0 && messages.length === 0) {
+        setMessages(selectedChat.messages);
+      }
+      return;
+    }
+
+    // If we get here, the selected chat doesn't exist in our chats list
+    // This should only happen if the chat was explicitly deleted
+    console.log('[Home] Selected chat no longer exists, resetting state');
+    
+    // If there are other chats, select the first one
+    if (chats.length > 0) {
+      const newSelectedId = chats[0].id;
+      console.log('[Home] Selecting first available chat:', newSelectedId);
+      setSelectedChatId(newSelectedId);
+      localStorage.setItem('lastSelectedChatId', newSelectedId);
+      
+      // Load the messages for the newly selected chat
+      const newSelectedChat = chats.find(chat => chat.id === newSelectedId);
+      if (newSelectedChat?.messages) {
+        setMessages(newSelectedChat.messages);
+      }
+    } else {
+      // If no chats remain, set to empty string and clear localStorage
+      console.log('[Home] No chats available, clearing selection');
+      setSelectedChatId('');
+      localStorage.removeItem('lastSelectedChatId');
+      setMessages([]);
+    }
+  }, [chats, selectedChatId]);
+
+  // Update handleSendMessage to be more resilient
   const handleSendMessage = async (message: string, targetMessageId?: string) => {
     console.log('[Home] handleSendMessage called', { 
       messageLength: message.length,
@@ -571,15 +611,18 @@ export default function Home() {
       
       let newChatId = selectedChatId;
       let currentMessages: Message[] = [];
+      let isNewChat = false;
+      let newChat: Chat | null = null;
       
       // Create a new chat if needed
       if (selectedChatId === '') {
         console.log('[Home] No chat selected, creating new chat');
         const chatId = uuidv4();
         newChatId = chatId;
+        isNewChat = true;
         
         // Create new chat with the message
-        const newChat: Chat = {
+        newChat = {
           id: chatId,
           title: generateChatTitle(message),
           messages: [userMessage],
@@ -588,13 +631,17 @@ export default function Home() {
           modelId: selectedModelWithApiKey.id,
         };
         
-        // Add the new chat to the list
-        const updatedChats = [newChat, ...chats];
-        setChats(updatedChats);
-        storage.saveChats(updatedChats);
+        // Add the new chat to the list and update state immediately
+        setChats(prevChats => {
+          const updatedChats = [newChat!, ...prevChats];
+          // Save to storage
+          storage.saveChats(updatedChats);
+          return updatedChats;
+        });
         
         // Set the selected chat ID immediately
         setSelectedChatId(chatId);
+        localStorage.setItem('lastSelectedChatId', chatId);
         currentMessages = [userMessage];
       } else {
         // Add to the existing chat
@@ -609,18 +656,21 @@ export default function Home() {
         currentMessages = [...existingChat.messages, userMessage];
         
         // Update the chat with the new message
-        const updatedChats = chats.map((chat) =>
-          chat.id === newChatId
-            ? {
-                ...chat,
-                messages: currentMessages,
-                updatedAt: new Date(),
-              }
-            : chat
-        );
-        
-        setChats(updatedChats);
-        storage.saveChats(updatedChats);
+        setChats(prevChats => {
+          const updatedChats = prevChats.map((chat) =>
+            chat.id === newChatId
+              ? {
+                  ...chat,
+                  messages: currentMessages,
+                  updatedAt: new Date(),
+                }
+              : chat
+          );
+          
+          // Save to storage
+          storage.saveChats(updatedChats);
+          return updatedChats;
+        });
       }
 
       // Update the UI with the user message
@@ -639,6 +689,44 @@ export default function Home() {
       // Show the loading message in the UI
       const messagesWithLoadingIndicator = [...currentMessages, loadingMessage];
       setMessages(messagesWithLoadingIndicator);
+
+      // If this is a new chat, update it again to ensure it exists
+      if (isNewChat && newChat) {
+        // Create a function to update the chat with loading message
+        const updateChatWithLoading = () => {
+          setChats(prevChats => {
+            // Try to find the chat in the current state
+            const chatExists = prevChats.some(chat => chat.id === newChatId);
+            
+            if (!chatExists) {
+              // If chat doesn't exist, add it
+              const updatedNewChat = {
+                ...newChat!,
+                messages: messagesWithLoadingIndicator
+              };
+              const updatedChats = [updatedNewChat, ...prevChats.filter(chat => chat.id !== newChatId)];
+              storage.saveChats(updatedChats);
+              return updatedChats;
+            } else {
+              // If chat exists, update it
+              const updatedChats = prevChats.map(chat => 
+                chat.id === newChatId ? {
+                  ...chat,
+                  messages: messagesWithLoadingIndicator
+                } : chat
+              );
+              storage.saveChats(updatedChats);
+              return updatedChats;
+            }
+          });
+        };
+        
+        // Update the chat immediately
+        updateChatWithLoading();
+        
+        // And also after a short delay to ensure it's updated
+        setTimeout(updateChatWithLoading, 100);
+      }
       
       // Send message to AI using the API directly
       console.log('[Home] Sending message to API');
@@ -691,6 +779,23 @@ export default function Home() {
             : m
         );
         setMessages(updatedMessages);
+
+        // If this is a new chat, make sure to keep updating the chat in storage during streaming
+        if (isNewChat || true) { // Always update during streaming
+          setChats(prevChats => {
+            const updatedChats = prevChats.map((chat) =>
+              chat.id === newChatId
+                ? {
+                    ...chat,
+                    messages: updatedMessages,
+                    updatedAt: new Date(),
+                  }
+                : chat
+            );
+            storage.saveChats(updatedChats);
+            return updatedChats;
+          });
+        }
       }
       
       // After streaming is complete, save the final message
@@ -713,19 +818,19 @@ export default function Home() {
       setMessages(finalMessages);
       
       // Update the chat in storage
-      const updatedChats = chats.map((chat) =>
-        chat.id === newChatId
-          ? {
-              ...chat,
-              messages: finalMessages,
-              updatedAt: new Date(),
-            }
-          : chat
-      );
-      
-      setChats(updatedChats);
-      storage.saveChats(updatedChats);
-      localStorage.setItem('lastSelectedChatId', newChatId);
+      setChats(prevChats => {
+        const updatedChats = prevChats.map((chat) =>
+          chat.id === newChatId
+            ? {
+                ...chat,
+                messages: finalMessages,
+                updatedAt: new Date(),
+              }
+            : chat
+        );
+        storage.saveChats(updatedChats);
+        return updatedChats;
+      });
       
     } catch (error) {
       console.error('[Home] Error in handleSendMessage:', error);
@@ -748,38 +853,6 @@ export default function Home() {
     // Truncate with ellipsis if still too long
     return message.substring(0, 27) + '...';
   };
-
-  // Add this useEffect to ensure chat state is always synchronized
-  useEffect(() => {
-    // If we have a selectedChatId but it's not in the current chats list
-    // This can happen after deleting a chat or if localStorage has an outdated ID
-    if (selectedChatId !== '' && !chats.some(chat => chat.id === selectedChatId)) {
-      console.log('[Home] Selected chat no longer exists, resetting state');
-      // Clear UI
-      useChatSetMessages([]);
-      setUIMessages([]);
-      
-      // If there are other chats, select the first one
-      if (chats.length > 0) {
-        const newSelectedId = chats[0].id;
-        console.log('[Home] Selecting first available chat:', newSelectedId);
-        setSelectedChatId(newSelectedId);
-        localStorage.setItem('lastSelectedChatId', newSelectedId);
-        
-        // Load the messages for the newly selected chat
-        const newSelectedChat = chats.find(chat => chat.id === newSelectedId);
-        if (newSelectedChat) {
-          useChatSetMessages(newSelectedChat.messages || []);
-          setUIMessages(newSelectedChat.messages || []);
-        }
-      } else {
-        // If no chats remain, set to empty string and clear localStorage
-        console.log('[Home] No chats available, clearing selection');
-        setSelectedChatId('');
-        localStorage.removeItem('lastSelectedChatId');
-      }
-    }
-  }, [chats, selectedChatId, useChatSetMessages]);
 
   // Add a navigation listener to detect when we're returning from settings page
   useEffect(() => {
