@@ -14,6 +14,15 @@ import { MarkdownContent } from '@/components/MarkdownContent';
 import { Button } from '@/components/ui/button';
 import { Copy, RefreshCw, ArrowLeft, ArrowRight, Undo2, History, ChevronDown } from 'lucide-react';
 
+// Add this new component for the thinking animation
+const ThinkingAnimation = () => (
+  <div className="flex items-center space-x-2 p-3">
+    <span className="h-2 w-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
+    <span className="h-2 w-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
+    <span className="h-2 w-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse" style={{ animationDelay: '600ms' }}></span>
+  </div>
+);
+
 export default function Home() {
   const router = useRouter();
   const [chats, setChats] = useState<Chat[]>([]);
@@ -1193,17 +1202,23 @@ export default function Home() {
               <div key={message.id} className="flex flex-col space-y-2 mb-4">
                 <div className={`flex items-start ${message.role === 'user' ? 'justify-end' : ''}`}>
                   <div className={`${message.role === 'user' ? 'ml-12' : 'mr-12'}`}>
-                    <div className={`prose dark:prose-invert inline-block p-3 rounded-lg ${
-                      message.role === 'user' 
-                        ? 'bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20' 
-                        : 'bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100 dark:border-gray-700/30'
-                    }`}>
-                      <MarkdownContent content={message.content} />
-                    </div>
+                    {message.role === 'assistant' && message.isLoading && message.content === '' ? (
+                      <div className="inline-block p-3 rounded-lg bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100 dark:border-gray-700/30">
+                        <ThinkingAnimation />
+                      </div>
+                    ) : (
+                      <div className={`prose dark:prose-invert inline-block p-3 rounded-lg ${
+                        message.role === 'user' 
+                          ? 'bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20' 
+                          : 'bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100 dark:border-gray-700/30'
+                      }`}>
+                        <MarkdownContent content={message.content} />
+                      </div>
+                    )}
                   </div>
                 </div>
-                {message.role === 'assistant' && (
-                  <div className="flex items-center space-x-2 mt-1">
+                {message.role === 'assistant' && !message.isLoading && (
+                  <div className="flex items-center space-x-2 mt-1 ml-0">
                     <div className="flex items-center space-x-2 group">
                       {hasVersions(message) && message.versions.length > 1 && (
                         <div className="relative">
