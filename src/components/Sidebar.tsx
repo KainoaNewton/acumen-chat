@@ -35,11 +35,11 @@ export function Sidebar({
   const router = useRouter();
 
   return (
-    <div className="w-64 h-full bg-zinc-900 border-r border-zinc-800 flex flex-col">
+    <div className="w-64 h-full bg-black border-r border-[#333333] flex flex-col">
       <div className="p-4">
         <Button
           onClick={onNewChat}
-          className="w-full flex items-center gap-2"
+          className="w-full flex items-center gap-2 bg-[#0C1020] border border-[#0E1B48] hover:border-[#1A2F7D] hover:bg-[#0C1020] text-white"
           variant="secondary"
         >
           <Plus className="w-4 h-4" />
@@ -52,10 +52,10 @@ export function Sidebar({
           <div
             key={chat.id}
             className={cn(
-              'group flex items-center gap-2 w-full rounded-md mb-1',
+              'group flex items-center gap-2 w-full rounded-md mb-1 border',
               selectedChatId === chat.id
-                ? 'bg-zinc-800'
-                : 'hover:bg-zinc-800/50'
+                ? 'bg-[#0D0D0D] border-[#333333] text-white'
+                : 'hover:bg-[#0D0D0D] border-transparent hover:border-[#202020] text-white'
             )}
           >
             {editingChatId === chat.id ? (
@@ -64,14 +64,14 @@ export function Sidebar({
                   type="text"
                   value={editingTitle}
                   onChange={(e) => onEditingTitleChange(e.target.value)}
-                  className="flex-1 bg-zinc-700 text-zinc-100 px-2 py-1 rounded border border-zinc-600 focus:outline-none focus:border-zinc-500"
+                  className="flex-1 bg-black text-white px-2 py-1 rounded border border-[#333333] focus:outline-none focus:border-[#444444]"
                   autoFocus
                 />
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => onSaveTitle(chat.id)}
-                  className="h-8 w-8 text-zinc-400 hover:text-zinc-100"
+                  className="h-8 w-8 text-white hover:text-[#C9A4A9]"
                 >
                   <Check className="w-4 h-4" />
                 </Button>
@@ -79,7 +79,7 @@ export function Sidebar({
                   variant="ghost"
                   size="icon"
                   onClick={() => onEditChat(null)}
-                  className="h-8 w-8 text-zinc-400 hover:text-zinc-100"
+                  className="h-8 w-8 text-white hover:text-[#C9A4A9]"
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -88,7 +88,7 @@ export function Sidebar({
               <>
                 <button
                   onClick={() => onSelectChat(chat.id)}
-                  className="flex-1 text-left px-3 py-2 text-zinc-300"
+                  className="flex-1 text-left px-3 py-2 text-white"
                 >
                   {chat.title}
                 </button>
@@ -97,7 +97,7 @@ export function Sidebar({
                     variant="ghost"
                     size="icon"
                     onClick={() => onEditChat(chat.id)}
-                    className="h-8 w-8 text-zinc-400 hover:text-zinc-100"
+                    className="h-8 w-8 text-white hover:text-[#1A2F7D]"
                   >
                     <Pencil className="w-4 h-4" />
                   </Button>
@@ -105,7 +105,7 @@ export function Sidebar({
                     variant="ghost"
                     size="icon"
                     onClick={() => onDeleteChat(chat.id)}
-                    className="h-8 w-8 text-zinc-400 hover:text-zinc-100"
+                    className="h-8 w-8 text-white hover:text-[#1A2F7D]"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -116,11 +116,11 @@ export function Sidebar({
         ))}
       </div>
 
-      <div className="p-4 border-t border-zinc-800">
+      <div className="p-4 border-t border-[#333333]">
         <Link href="/settings" prefetch={true}>
           <Button
             variant="ghost"
-            className="w-full justify-start text-left text-zinc-400 hover:text-zinc-100"
+            className="w-full justify-start text-left text-white hover:text-[#1A2F7D] hover:bg-[#0D0D0D]"
             onClick={(e) => {
               e.preventDefault();
               console.time('SettingsButtonClick-to-NavigationStart');

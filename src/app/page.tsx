@@ -22,9 +22,31 @@ const ThinkingAnimation = () => (
       <span className="h-2 w-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
       <span className="h-2 w-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '600ms' }}></span>
     </div>
-    <span className="text-gray-500 dark:text-gray-400 text-xs">AI is thinking...</span>
+    <span className="text-gray-500 dark:text-gray-400 text-xs">AI is thinking</span>
   </div>
 );
+
+// Add a component for animated streaming content
+const StreamingContent = ({ content }: { content: string }) => {
+  const contentLines = content.split('\n');
+  
+  return (
+    <div className="streaming-content">
+      {contentLines.map((line, index) => (
+        <div 
+          key={index} 
+          className="streaming-line animate-fade-in" 
+          style={{ 
+            animationDelay: `${Math.min(index * 30, 300)}ms`,
+            minHeight: line.trim() === '' ? '0.6em' : 'auto'
+          }}
+        >
+          {line.trim() === '' ? <br /> : <MarkdownContent content={line} />}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export default function Home() {
   const router = useRouter();
@@ -37,6 +59,9 @@ export default function Home() {
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  
+  // Add a ref to track the last selected chat ID to prevent race conditions
+  const lastSelectedChatRef = useRef<string>('');
   
   // No need for activeModel state since it's causing circular dependencies
   
@@ -118,6 +143,9 @@ export default function Home() {
     
     setChats(savedChats);
 
+    // Clear messages initially to prevent any stale data
+    setMessages([]);
+
     // Add this code to handle the initial loading of the selected chat
     // and restore chat messages from localStorage
     if (savedChats.length > 0) {
@@ -125,18 +153,30 @@ export default function Home() {
       const lastSelectedChatId = localStorage.getItem('lastSelectedChatId');
       if (lastSelectedChatId && savedChats.some(chat => chat.id === lastSelectedChatId)) {
         console.log('[Home] Restoring last selected chat:', lastSelectedChatId);
+        // Update ref to match the selected chat
+        lastSelectedChatRef.current = lastSelectedChatId;
         setSelectedChatId(lastSelectedChatId);
         const lastSelectedChat = savedChats.find(chat => chat.id === lastSelectedChatId);
         if (lastSelectedChat?.messages) {
           // Restore messages from the saved chat
-          setMessages(lastSelectedChat.messages);
+          setUIMessages(lastSelectedChat.messages);
+          // Set messages with a slight delay to ensure loading is complete
+          setTimeout(() => {
+            setMessages(lastSelectedChat.messages);
+          }, 10);
         }
       } else {
         // If no last selected chat or it doesn't exist anymore, select the first chat
         console.log('[Home] Setting first chat as selected');
+        // Update ref to match the selected chat
+        lastSelectedChatRef.current = savedChats[0].id;
         setSelectedChatId(savedChats[0].id);
         if (savedChats[0]?.messages) {
-          setMessages(savedChats[0].messages);
+          setUIMessages(savedChats[0].messages);
+          // Set messages with a slight delay to ensure loading is complete
+          setTimeout(() => {
+            setMessages(savedChats[0].messages);
+          }, 10);
         }
       }
     }
@@ -440,15 +480,27 @@ export default function Home() {
   
   // Update chat messages when selectedChat changes
   useEffect(() => {
+    // Update ref to match current selection
+    lastSelectedChatRef.current = selectedChatId;
+    
     if (selectedChatId !== '') {
       const selectedChat = chats.find((chat) => chat.id === selectedChatId);
       if (selectedChat) {
         console.log('[Home] Loading messages for selected chat:', selectedChatId);
-        useChatSetMessages(selectedChat.messages || []);
+        // First clear existing messages
+        useChatSetMessages([]);
+        // Then set the correct messages with a slight delay
+        setTimeout(() => {
+          // Only update if the selected chat hasn't changed during the timeout
+          if (lastSelectedChatRef.current === selectedChatId) {
+            useChatSetMessages(selectedChat.messages || []);
+          }
+        }, 10);
       }
     } else {
       console.log('[Home] No chat selected, clearing messages');
       useChatSetMessages([]);
+      setMessages([]);
     }
   }, [selectedChatId, chats, useChatSetMessages]);
 
@@ -484,13 +536,30 @@ export default function Home() {
   };
 
   const handleSelectChat = (chatId: string) => {
+    // Update the ref immediately to prevent race conditions
+    lastSelectedChatRef.current = chatId;
+    
+    // First, clear the current messages
+    setMessages([]);
+    
+    // Then set the selected chat ID
     setSelectedChatId(chatId);
+    
     // Save the selected chat ID to localStorage for persistence
     localStorage.setItem('lastSelectedChatId', chatId);
+    
+    // Find the selected chat and update messages state
     const selectedChat = chats.find((chat) => chat.id === chatId);
     if (selectedChat) {
       // When selecting a chat, reset UI messages to avoid stale state
       setUIMessages(selectedChat.messages || []);
+      // Set messages with a slight delay to ensure proper clearing first
+      setTimeout(() => {
+        // Only update if the selected chat hasn't changed during the timeout
+        if (lastSelectedChatRef.current === chatId) {
+          setMessages(selectedChat.messages || []);
+        }
+      }, 10);
     }
   };
 
@@ -552,14 +621,21 @@ export default function Home() {
   // Add this useEffect to ensure chat state is always synchronized
   useEffect(() => {
     // Only run this effect if we have a selectedChatId
-    if (selectedChatId === '') return;
+    if (selectedChatId === '') {
+      // Clear messages when no chat is selected
+      setMessages([]);
+      return;
+    }
 
     // If the selected chat exists in our chats list, make sure messages are synced
     const selectedChat = chats.find(chat => chat.id === selectedChatId);
     if (selectedChat) {
-      // Ensure messages are in sync with the selected chat
-      if (selectedChat.messages?.length > 0 && messages.length === 0) {
-        setMessages(selectedChat.messages);
+      // If there's a mismatch between displayed messages and the selected chat's messages,
+      // update the displayed messages to match the selected chat
+      if (messages.length === 0 || 
+          (messages.length > 0 && messages[0].id !== selectedChat.messages[0]?.id)) {
+        console.log('[Home] Syncing messages with selected chat');
+        setMessages(selectedChat.messages || []);
       }
       return;
     }
@@ -587,7 +663,7 @@ export default function Home() {
       localStorage.removeItem('lastSelectedChatId');
       setMessages([]);
     }
-  }, [chats, selectedChatId]);
+  }, [chats, selectedChatId, messages]);
 
   // Update handleSendMessage to be more resilient
   const handleSendMessage = async (message: string, targetMessageId?: string) => {
@@ -1173,7 +1249,7 @@ export default function Home() {
   }, [openDropdownId]);
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="flex h-screen bg-black text-foreground">
       <Sidebar
         chats={chats}
         selectedChatId={selectedChatId}
@@ -1187,7 +1263,7 @@ export default function Home() {
         onEditingTitleChange={setEditingTitle}
         onSaveTitle={handleSaveTitle}
       />
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col bg-black">
         <div className="flex-1 overflow-y-auto p-4">
           {selectedChatId === '' ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-4">
@@ -1195,7 +1271,7 @@ export default function Home() {
               <p className="text-muted-foreground mb-4">Create a new chat or select an existing one to get started.</p>
               <button 
                 onClick={handleNewChat} 
-                className="px-4 py-2 bg-primary/80 text-primary-foreground rounded-md hover:bg-primary transition"
+                className="px-4 py-2 bg-[#202020] border border-[#333333] hover:border-[#444444] text-white rounded-md transition"
               >
                 New Chat
               </button>
@@ -1203,101 +1279,110 @@ export default function Home() {
           ) : (
             messages.map((message, index) => (
               <div key={message.id} className="flex flex-col space-y-2 mb-4">
-                <div className={`flex items-start ${message.role === 'user' ? 'justify-end' : ''}`}>
-                  <div className={`${message.role === 'user' ? 'ml-12' : 'mr-12'}`}>
+                <div className={`flex items-start ${message.role === 'user' ? 'justify-end' : ''} group`}>
+                  <div className={`${message.role === 'user' ? 'ml-12' : 'mr-12'} relative group pb-10 px-2`}>
                     {message.role === 'assistant' && message.isLoading && message.content === '' ? (
-                      <div className="inline-block p-3 rounded-lg bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100 dark:border-gray-700/30">
+                      <div className="inline-block p-3 rounded-lg bg-gray-50/50 dark:bg-[#0D0D0D] border border-gray-100 dark:border-[#121212]">
                         <ThinkingAnimation />
                       </div>
                     ) : (
-                      <div className={`prose dark:prose-invert inline-block p-3 rounded-lg ${
+                      <div className={`prose dark:prose-invert inline-block px-4 py-3 rounded-lg transition-all duration-200 ${
                         message.role === 'user' 
-                          ? 'bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20' 
-                          : 'bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100 dark:border-gray-700/30'
+                          ? 'bg-blue-50/50 dark:bg-[#0C1020] border border-blue-100 dark:border-[#0E1B48] group-hover:border-blue-200 dark:group-hover:border-[#1A2F7D]' 
+                          : 'bg-gray-50/50 dark:bg-[#0D0D0D] border border-gray-100 dark:border-[#121212] group-hover:border-gray-300 dark:group-hover:border-[#202020]'
                       }`}>
-                        <MarkdownContent content={message.content} />
+                        <div className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                          {message.role === 'assistant' && message.isLoading ? (
+                            <StreamingContent content={message.content} />
+                          ) : (
+                            <MarkdownContent content={message.content} />
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {message.role === 'assistant' && !message.isLoading && (
+                      <div className={`absolute ${hasVersions(message) && message.versions.length > 1 ? 'left-2' : 'left-3'} mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+                        <div className="inline-flex items-center space-x-2">
+                          {hasVersions(message) && message.versions.length > 1 && (
+                            <div className="relative">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(openDropdownId === message.id ? null : message.id);
+                                }}
+                                className="flex items-center space-x-1 px-2 py-1 bg-gray-50/50 dark:bg-[#0D0D0D] rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 border border-gray-100 dark:border-[#121212] group-hover:border-gray-300 dark:group-hover:border-[#202020]"
+                              >
+                                <History className="h-4 w-4" />
+                                <span className="text-sm">
+                                  {(message.currentVersionIndex || 0) + 1}/{message.versions?.length}
+                                </span>
+                                <ChevronDown className="h-3 w-3 ml-0.5" />
+                              </button>
+                              {openDropdownId === message.id && (
+                                <div 
+                                  className="absolute left-0 mt-1 w-40 bg-gray-50/50 dark:bg-[#0D0D0D] rounded-lg shadow-lg border border-gray-100 dark:border-[#121212] z-10 backdrop-blur-xl"
+                                >
+                                  <div className="py-1">
+                                    {message.versions.map((version, index) => (
+                                      <button
+                                        key={version.id}
+                                        onClick={() => {
+                                          handleVersionSelect(message, index);
+                                          setOpenDropdownId(null);
+                                        }}
+                                        className={`w-full text-left px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors ${
+                                          index === message.currentVersionIndex 
+                                            ? 'bg-gray-100/50 dark:bg-gray-800/50' 
+                                            : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/50'
+                                        }`}
+                                      >
+                                        Version {index + 1}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          <button
+                            onClick={() => {
+                              const button = document.getElementById(`copy-button-${message.id}`);
+                              if (button) {
+                                const icon = button.querySelector('svg');
+                                if (icon) {
+                                  icon.innerHTML = '<path d="M20 6L9 17l-5-5"/>';
+                                  icon.setAttribute('stroke-width', '3');
+                                }
+                                setTimeout(() => {
+                                  if (icon) {
+                                    icon.innerHTML = '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"></path>';
+                                    icon.setAttribute('stroke-width', '2');
+                                  }
+                                }, 500);
+                              }
+                              navigator.clipboard.writeText(message.content);
+                              toast.success('Copied to clipboard');
+                            }}
+                            id={`copy-button-${message.id}`}
+                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleRewrite(message, messages[index - 1])}
+                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </button>
+                          <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                            Rewrite with {selectedModel?.name}
+                          </span>
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
-                {message.role === 'assistant' && !message.isLoading && (
-                  <div className="flex items-center space-x-2 mt-1 ml-0">
-                    <div className="flex items-center space-x-2 group">
-                      {hasVersions(message) && message.versions.length > 1 && (
-                        <div className="relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenDropdownId(openDropdownId === message.id ? null : message.id);
-                            }}
-                            className="flex items-center space-x-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                          >
-                            <History className="h-4 w-4" />
-                            <span className="text-sm">
-                              {(message.currentVersionIndex || 0) + 1}/{message.versions?.length}
-                            </span>
-                            <ChevronDown className="h-3 w-3 ml-0.5" />
-                          </button>
-                          {openDropdownId === message.id && (
-                            <div 
-                              className="absolute left-0 mt-1 w-40 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10"
-                            >
-                              <div className="py-1">
-                                {message.versions.map((version, index) => (
-                                  <button
-                                    key={version.id}
-                                    onClick={() => {
-                                      handleVersionSelect(message, index);
-                                      setOpenDropdownId(null);
-                                    }}
-                                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                                      index === message.currentVersionIndex ? 'bg-gray-50 dark:bg-gray-700' : ''
-                                    }`}
-                                  >
-                                    Version {index + 1}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      <button
-                        onClick={() => {
-                          const button = document.getElementById(`copy-button-${message.id}`);
-                          if (button) {
-                            const icon = button.querySelector('svg');
-                            if (icon) {
-                              icon.innerHTML = '<path d="M20 6L9 17l-5-5"/>';
-                              icon.setAttribute('stroke-width', '3');
-                            }
-                            setTimeout(() => {
-                              if (icon) {
-                                icon.innerHTML = '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"></path>';
-                                icon.setAttribute('stroke-width', '2');
-                              }
-                            }, 500);
-                          }
-                          navigator.clipboard.writeText(message.content);
-                          toast.success('Copied to clipboard');
-                        }}
-                        id={`copy-button-${message.id}`}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleRewrite(message, messages[index - 1])}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </button>
-                      <span className="text-sm text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                        Rewrite with {selectedModel?.name}
-                      </span>
-                    </div>
-                  </div>
-                )}
               </div>
             ))
           )}

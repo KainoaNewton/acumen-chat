@@ -460,8 +460,8 @@ export function ModelsTab({ models: propModels, onAddModel, onDeleteModel }: Mod
               onOpenChange={() => toggleSection(provider.id)}
               className={`rounded-lg border backdrop-blur ${
                 isActive 
-                  ? 'border-primary/20 bg-primary/5' 
-                  : 'border-secondary/20 bg-secondary/5'
+                  ? 'border-[#0E1B48] bg-[#0C1020]' 
+                  : 'border-[#0C1020]/20 bg-[#0C1020]/5'
               } transition-all`}
             >
               <div className="p-4">
@@ -471,13 +471,13 @@ export function ModelsTab({ models: propModels, onAddModel, onDeleteModel }: Mod
                       {getProviderIcon(provider.id)}
                     </span>
                     <h3 className={`text-lg font-medium ${
-                      isActive ? 'text-primary-foreground' : 'text-muted-foreground'
+                      isActive ? 'text-white' : 'text-muted-foreground'
                     }`}>
                       {provider.name}
                     </h3>
                     <ChevronDown className={`w-4 h-4 transition-transform ${
                       isOpen ? 'transform rotate-180' : ''
-                    } ${isActive ? 'text-primary/60' : 'text-muted-foreground/60'}`} />
+                    } ${isActive ? 'text-white/60' : 'text-muted-foreground/60'}`} />
                   </CollapsibleTrigger>
                   
                   <Dialog>

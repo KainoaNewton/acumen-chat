@@ -239,13 +239,11 @@ export function ChatInput({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="w-px h-6 bg-zinc-800" />
-
         <div className="relative flex-1">
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder={isLoading ? "AI is thinking..." : "Type your message..."}
+            placeholder={isLoading ? "AI is thinking" : "Type your message..."}
             className="flex-1 min-h-[44px] max-h-[400px] bg-transparent border-0 focus:ring-0 resize-none py-3 text-sm text-zinc-100 placeholder:text-zinc-500 pr-8"
             onKeyDown={handleKeyDown}
             disabled={isLoading}
