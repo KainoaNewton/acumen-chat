@@ -168,12 +168,12 @@ export function ChatInput({
 
   return (
     <form onSubmit={handleSubmit} className="p-4">
-      <div className="relative flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/90 backdrop-blur supports-[backdrop-filter]:bg-zinc-900/90">
+      <div className="relative flex items-center gap-2 rounded-xl border border-[#202020] bg-black backdrop-blur shadow-sm">
         <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
           <DropdownMenuTrigger asChild>
             <Button 
               variant="ghost" 
-              className="h-9 px-3 gap-2 text-sm font-medium text-zinc-400 min-w-[150px] justify-start"
+              className="h-12 px-4 gap-2 text-sm font-medium text-white hover:bg-[#141414] min-w-[180px] justify-start rounded-l-xl border-r border-[#202020]"
               onClick={(e) => {
                 e.preventDefault();
                 setIsDropdownOpen(true);
@@ -193,7 +193,7 @@ export function ChatInput({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent 
-            className="w-[300px] p-2 bg-zinc-900 border border-zinc-800 max-h-[400px] overflow-y-auto"
+            className="w-[300px] p-2 bg-black border border-[#202020] max-h-[400px] overflow-y-auto rounded-xl shadow-lg"
             align="start"
             side="top"
             sideOffset={8}
@@ -206,29 +206,29 @@ export function ChatInput({
                     onSelectModel(model.id);
                     setIsDropdownOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between p-2 rounded-lg border text-left transition-colors ${
+                  className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-colors ${
                     model.id === selectedModelId
-                      ? 'bg-zinc-800/80 border-zinc-700'
-                      : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'
+                      ? 'bg-[#0D0D0D] border-[#1A2F7D] text-white'
+                      : 'bg-black border-[#202020] hover:border-[#333333] hover:bg-[#0D0D0D] text-white'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-xl" role="img" aria-label="provider icon">
                       {getProviderIcon(model.provider)}
                     </span>
-                    <span className="font-medium text-zinc-100">{model.name}</span>
+                    <span className="font-medium">{model.name}</span>
                   </div>
                   <div className="flex gap-1">
                     {model.provider === 'google' && (
                       <>
-                        <div className="rounded-md bg-zinc-800 p-1">
-                          <Eye className="w-3 h-3 text-zinc-400" />
+                        <div className="rounded-md bg-black/50 p-1">
+                          <Eye className="w-3 h-3 text-white/70" />
                         </div>
-                        <div className="rounded-md bg-zinc-800 p-1">
-                          <FileText className="w-3 h-3 text-zinc-400" />
+                        <div className="rounded-md bg-black/50 p-1">
+                          <FileText className="w-3 h-3 text-white/70" />
                         </div>
-                        <div className="rounded-md bg-zinc-800 p-1">
-                          <Globe className="w-3 h-3 text-zinc-400" />
+                        <div className="rounded-md bg-black/50 p-1">
+                          <Globe className="w-3 h-3 text-white/70" />
                         </div>
                       </>
                     )}
@@ -243,8 +243,8 @@ export function ChatInput({
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder={isLoading ? "AI is thinking" : "Type your message..."}
-            className="flex-1 min-h-[44px] max-h-[400px] bg-transparent border-0 focus:ring-0 resize-none py-3 text-sm text-zinc-100 placeholder:text-zinc-500 pr-8"
+            placeholder={isLoading ? "AI is thinking..." : "Type your message..."}
+            className="flex-1 min-h-[48px] max-h-[400px] bg-transparent border-0 focus:ring-0 resize-none py-3.5 px-4 text-sm text-white placeholder:text-gray-500 pr-10"
             onKeyDown={handleKeyDown}
             disabled={isLoading}
           />
@@ -254,7 +254,7 @@ export function ChatInput({
               type="button" 
               variant="ghost" 
               size="icon" 
-              className="absolute right-2 top-2 h-6 w-6 text-zinc-400 hover:text-zinc-100"
+              className="absolute right-3 top-3 h-6 w-6 text-gray-500 hover:text-white"
               onClick={() => setMessage('')}
             >
               <X className="h-3 w-3" />
@@ -263,7 +263,7 @@ export function ChatInput({
         </div>
 
         {isLoading ? (
-          <div className="h-9 w-9 flex items-center justify-center text-zinc-400">
+          <div className="h-12 w-12 flex items-center justify-center text-gray-500">
             <Loader2 className="w-4 h-4 animate-spin" />
           </div>
         ) : (
@@ -271,7 +271,7 @@ export function ChatInput({
             type="submit" 
             variant="ghost" 
             size="icon" 
-            className="h-9 w-9 text-zinc-400 hover:text-zinc-100"
+            className="h-12 w-12 text-gray-500 hover:text-[#1A2F7D] hover:bg-[#0D0D0D] transition-colors"
             disabled={isLoading || !message.trim()}
           >
             <Send className="w-4 h-4" />
@@ -280,7 +280,7 @@ export function ChatInput({
       </div>
       
       {isLoading && (
-        <div className="mt-2 text-xs text-zinc-500 text-center animate-pulse">
+        <div className="mt-2 text-xs text-gray-500 text-center animate-pulse">
           AI is generating a response...
         </div>
       )}
