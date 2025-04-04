@@ -20,11 +20,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/compon
 const ThinkingAnimation = () => (
   <div className="flex items-center space-x-2 p-2">
     <div className="flex space-x-1.5">
-      <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
-      <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
-      <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '600ms' }}></span>
+      <span className="h-2.5 w-2.5 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0ms', animationDuration: '1000ms' }}></span>
+      <span className="h-2.5 w-2.5 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '300ms', animationDuration: '1000ms' }}></span>
+      <span className="h-2.5 w-2.5 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '600ms', animationDuration: '1000ms' }}></span>
     </div>
-    <span className="text-gray-400 text-xs">AI is thinking</span>
+    <span className="text-gray-300 text-sm">AI is thinking</span>
   </div>
 );
 
@@ -1102,6 +1102,8 @@ export default function Home() {
       let aiMessageContent = '';
       
       // Stream the response
+      let hasStartedStreaming = false;
+
       while (true) {
         const { done, value } = await reader.read();
         
@@ -1110,6 +1112,12 @@ export default function Home() {
         // Decode the chunk
         const text = new TextDecoder().decode(value);
         aiMessageContent += text;
+        
+        // For the first chunk, add a small delay to ensure the thinking animation is visible
+        if (!hasStartedStreaming) {
+          hasStartedStreaming = true;
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
         
         // Update the UI with the streaming content
         const updatedMessages = messagesWithLoadingIndicator.map(m => 
@@ -1288,6 +1296,9 @@ export default function Home() {
 
     setMessages([...messages, newMessage]);
 
+    // Add a small delay to ensure the thinking animation is visible
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -1356,9 +1367,12 @@ export default function Home() {
 
     // Update the message in the UI immediately to show it's being rewritten
     const updatedMessages = messages.map(m =>
-      m.id === message.id ? { ...updatedMessage, isLoading: true } : m
+      m.id === message.id ? { ...updatedMessage, isLoading: true, content: '' } : m
     );
     setMessages(updatedMessages);
+
+    // Add a small delay to ensure the thinking animation is visible
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     try {
       const response = await fetch('/api/chat', {
