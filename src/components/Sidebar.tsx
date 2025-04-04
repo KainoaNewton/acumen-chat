@@ -19,12 +19,15 @@ interface SidebarProps {
   onSaveTitle: (chatId: string) => void;
 }
 
-// Helper function to format chat titles
-const formatChatTitle = (title: string): string => {
-  if (title.length <= 18) {
+// Helper function to format chat titles with different truncation lengths
+const formatChatTitle = (title: string, showButtons: boolean = false): string => {
+  // When buttons are shown, we need to truncate to make room
+  // Otherwise, allow almost full width (much longer text)
+  const maxLength = showButtons ? 16 : 50;
+  if (title.length <= maxLength) {
     return title;
   }
-  return title.substring(0, 17) + '...';
+  return title.substring(0, maxLength - 3) + '...';
 };
 
 export function Sidebar({
@@ -67,53 +70,62 @@ export function Sidebar({
             )}
           >
             {editingChatId === chat.id ? (
-              <div className="flex items-center gap-2 p-2 w-full">
+              <div className="relative w-full">
                 <input
                   type="text"
                   value={editingTitle}
                   onChange={(e) => onEditingTitleChange(e.target.value)}
-                  className="flex-1 bg-black text-white px-2 py-1 rounded border border-[#333333] focus:outline-none focus:border-[#444444]"
+                  className="w-full text-left px-3 py-2 text-white bg-transparent border-0 focus:outline-none pr-20"
                   autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      onSaveTitle(chat.id);
+                    } else if (e.key === 'Escape') {
+                      onEditChat(null);
+                    }
+                  }}
+                  onBlur={() => onSaveTitle(chat.id)}
                 />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onSaveTitle(chat.id)}
-                  className="h-8 w-8 text-white"
-                >
-                  <Check className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onEditChat(null)}
-                  className="h-8 w-8 text-white hover:text-[#C9A4A9]"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onSaveTitle(chat.id)}
+                    className="h-8 w-8 text-white"
+                  >
+                    <Check className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="relative w-full">
                 <button
                   onClick={() => onSelectChat(chat.id)}
-                  className="w-full text-left px-3 py-2 text-white truncate pr-20"
+                  className="w-full text-left px-3 py-2 text-white truncate pr-16"
                 >
-                  {chat.title}
+                  <span className="group-hover:hidden">{formatChatTitle(chat.title, false)}</span>
+                  <span className="hidden group-hover:inline">{formatChatTitle(chat.title, true)}</span>
                 </button>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex transition-opacity">
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex transition-opacity">
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => onEditChat(chat.id)}
-                    className="h-8 w-8 text-white"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditChat(chat.id);
+                    }}
+                    className="h-7 w-7 text-white"
                   >
                     <Pencil className="w-4 h-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => onDeleteChat(chat.id)}
-                    className="h-8 w-8 text-white"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteChat(chat.id);
+                    }}
+                    className="h-7 w-7 text-white"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
