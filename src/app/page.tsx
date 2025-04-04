@@ -12,7 +12,7 @@ import { providers } from '@/lib/providers';
 import { toast } from 'sonner';
 import { MarkdownContent } from '@/components/MarkdownContent';
 import { Button } from '@/components/ui/button';
-import { Copy, RefreshCw, ArrowLeft, ArrowRight, Undo2, History, ChevronDown, Eye, FileText, Globe } from 'lucide-react';
+import { Copy, RefreshCw, ArrowLeft, ArrowRight, Undo2, History, ChevronDown, Eye, FileText, Globe, Pencil, Trash2 } from 'lucide-react';
 import React from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -1492,6 +1492,9 @@ export default function Home() {
     };
   }, [openDropdownId]);
 
+  // Get the selected chat data
+  const selectedChatData = selectedChatId ? chats.find(chat => chat.id === selectedChatId) : null;
+
   return (
     <div className="fixed inset-0 flex overflow-clip bg-black text-foreground">
       <Sidebar
@@ -1508,6 +1511,31 @@ export default function Home() {
         onSaveTitle={handleSaveTitle}
       />
       <main className="flex-1 flex flex-col bg-black relative overflow-clip">
+        {selectedChatId !== '' && selectedChatData && (
+          <div className="sticky top-0 z-10 flex items-center px-6 py-3 bg-black border-b border-[#333333] backdrop-blur">
+            <h2 className="text-white font-medium truncate mr-auto">{selectedChatData.title}</h2>
+            <div className="flex items-center gap-1 ml-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleEditChat(selectedChatId)}
+                className="h-8 w-8 text-white hover:bg-[#202020] rounded-md"
+                title="Edit chat title"
+              >
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDeleteChat(selectedChatId)}
+                className="h-8 w-8 text-white hover:bg-[#202020] hover:text-[#C9A4A9] rounded-md"
+                title="Delete chat"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto p-4 pb-28 overscroll-none">
           {selectedChatId === '' || messages.length === 0 ? (
             <HeroSection 
@@ -1520,7 +1548,7 @@ export default function Home() {
                 isFavorite: false,
                 isCustom: false
               } as Model)))}
-              selectedModelId={selectedChat?.modelId || settings.defaultModelId}
+              selectedModelId={selectedChatData?.modelId || settings.defaultModelId}
               onSelectModel={(modelId) => {
                 if (selectedChatId) {
                   const updatedChats = chats.map((chat) =>
@@ -1654,7 +1682,7 @@ export default function Home() {
         </div>
         <ChatInput
           models={settings.models}
-          selectedModelId={selectedChat?.modelId || settings.defaultModelId}
+          selectedModelId={selectedChatData?.modelId || settings.defaultModelId}
           onSendMessage={handleSendMessage}
           onSelectModel={(modelId) => {
             if (selectedChatId) {
