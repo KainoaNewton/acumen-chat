@@ -1508,8 +1508,8 @@ export default function Home() {
           onEditingTitleChange={setEditingTitle}
           onSaveTitle={handleSaveTitle}
         />
-        <div className="flex-1 flex justify-center items-center bg-[#202222] p-4">
-          <main className="w-full h-full flex flex-col bg-[#191A1A] relative overflow-clip rounded-lg border border-[#2C2C2D]">
+        <div className="flex-1 flex justify-center items-center bg-[#202222] pt-4">
+          <main className="w-full h-full flex flex-col bg-[#191A1A] relative overflow-clip rounded-tl-lg border-l border-t border-[#2C2C2D]">
             <div className="flex-1 overflow-y-auto p-4 pt-6 pb-28 overscroll-none">
               {selectedChatId === '' || messages.length === 0 ? (
                 <HeroSection 

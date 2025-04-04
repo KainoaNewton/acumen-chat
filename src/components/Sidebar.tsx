@@ -50,7 +50,7 @@ export function Sidebar({
       <div className="p-4">
         <Button
           onClick={onNewChat}
-          className="w-full flex items-center gap-2 bg-[#0C1020] border border-[#0E1B48] hover:border-[#1A2F7D] hover:bg-[#0C1020] text-white"
+          className="w-full rounded-full flex items-center gap-2 bg-[#191A1A] border border-[#2F3031] hover:border-[#24B2C6] hover:bg-[#191A1A] text-white"
           variant="secondary"
         >
           <Plus className="w-4 h-4" />
@@ -65,8 +65,8 @@ export function Sidebar({
             className={cn(
               'group flex items-center gap-2 w-full rounded-md mb-1',
               selectedChatId === chat.id
-                ? 'bg-[#202020] text-white'
-                : 'hover:bg-[#0D0D0D] text-white'
+                ? 'bg-[#2d2f2f]'
+                : 'hover:bg-[#22292A]'
             )}
           >
             {editingChatId === chat.id ? (
@@ -140,7 +140,7 @@ export function Sidebar({
         <Link href="/settings" prefetch={true}>
           <Button
             variant="ghost"
-            className="w-full justify-start text-left text-white hover:bg-[#0D0D0D]"
+            className="w-full flex justify-between items-center text-left text-white bg-[#2D2F2F] hover:bg-[#2D2F2F] group"
             onClick={(e) => {
               e.preventDefault();
               console.time('SettingsButtonClick-to-NavigationStart');
@@ -148,8 +148,8 @@ export function Sidebar({
               onOpenSettings();
             }}
           >
-            <Settings className="w-4 h-4 mr-2" />
-            Settings
+            <span>Settings</span>
+            <Settings className="w-4 h-4" />
           </Button>
         </Link>
       </div>
