@@ -46,7 +46,7 @@ export function Sidebar({
   const router = useRouter();
 
   return (
-    <div className="w-64 h-full bg-black border-r border-[#333333] flex flex-col">
+    <div className="w-64 h-full bg-[#202222] flex flex-col">
       <div className="p-4">
         <Button
           onClick={onNewChat}
@@ -63,10 +63,10 @@ export function Sidebar({
           <div
             key={chat.id}
             className={cn(
-              'group flex items-center gap-2 w-full rounded-md mb-1 border',
+              'group flex items-center gap-2 w-full rounded-md mb-1',
               selectedChatId === chat.id
-                ? 'bg-[#202020] border-transparent text-white'
-                : 'border-transparent hover:border-[#202020] text-white'
+                ? 'bg-[#202020] text-white'
+                : 'hover:bg-[#0D0D0D] text-white'
             )}
           >
             {editingChatId === chat.id ? (
@@ -136,7 +136,7 @@ export function Sidebar({
         ))}
       </div>
 
-      <div className="p-4 border-t border-[#333333]">
+      <div className="p-4">
         <Link href="/settings" prefetch={true}>
           <Button
             variant="ghost"

@@ -170,3 +170,7 @@
 
 	/* Remove the blinking cursor */
 }
+
+html {
+	overflow: clip;
+}

@@ -20,11 +20,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/compon
 const ThinkingAnimation = () => (
   <div className="flex items-center space-x-2 p-2">
     <div className="flex space-x-1.5">
-      <span className="h-2 w-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
-      <span className="h-2 w-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
-      <span className="h-2 w-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '600ms' }}></span>
+      <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
+      <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
+      <span className="h-2 w-2 bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '600ms' }}></span>
     </div>
-    <span className="text-gray-500 dark:text-gray-400 text-xs">AI is thinking</span>
+    <span className="text-gray-400 text-xs">AI is thinking</span>
   </div>
 );
 
@@ -1494,7 +1494,7 @@ export default function Home() {
 
   return (
     <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}>
-      <div className="flex h-screen overflow-hidden bg-[#000000] text-white">
+      <div className="flex h-screen overflow-hidden bg-[#202222] text-white">
         <Sidebar
           chats={chats}
           selectedChatId={selectedChatId}
@@ -1508,177 +1508,179 @@ export default function Home() {
           onEditingTitleChange={setEditingTitle}
           onSaveTitle={handleSaveTitle}
         />
-        <main className="flex-1 flex flex-col bg-black relative overflow-clip">
-          <div className="flex-1 overflow-y-auto p-4 pt-6 pb-28 overscroll-none">
-            {selectedChatId === '' || messages.length === 0 ? (
-              <HeroSection 
-                onSendMessage={handleSendMessage}
-                models={settings.models.length > 0 ? settings.models : providers.flatMap(p => p.getModels('').map(m => ({
-                  id: m.id,
-                  name: m.name,
-                  provider: m.provider,
-                  description: m.description || '',
-                  isFavorite: false,
-                  isCustom: false
-                } as Model)))}
-                selectedModelId={selectedChat?.modelId || settings.defaultModelId}
-                onSelectModel={(modelId) => {
-                  if (selectedChatId) {
-                    const updatedChats = chats.map((chat) =>
-                      chat.id === selectedChatId
-                        ? { ...chat, modelId }
-                        : chat
-                    );
-                    setChats(updatedChats);
-                    storage.saveChats(updatedChats);
-                  } else {
-                    const newSettings = {
-                      ...settings,
-                      defaultModelId: modelId
-                    };
-                    setSettings(newSettings);
-                    storage.saveSettings(newSettings);
-                  }
-                }}
-              />
-            ) : (
-              <>
-                {messages.map((message, index) => (
-                  <div key={message.id} className="flex flex-col space-y-2 mb-4">
-                    <div className={`flex items-start ${message.role === 'user' ? 'justify-end' : ''} group`}>
-                      <div className={`${message.role === 'user' ? 'ml-12' : 'mr-12'} relative group pb-10 px-2`}>
-                        {message.role === 'assistant' && message.isLoading && message.content === '' ? (
-                          <div className="inline-block p-3 rounded-lg bg-gray-50/50 dark:bg-[#0D0D0D] border border-gray-100 dark:border-[#121212]">
-                            <ThinkingAnimation />
-                          </div>
-                        ) : (
-                          <div className={`prose dark:prose-invert inline-block px-4 py-3 rounded-lg transition-all duration-200 ${
-                            message.role === 'user' 
-                              ? 'bg-blue-50/50 dark:bg-[#0C1020] border border-blue-100 dark:border-[#0E1B48] group-hover:border-blue-200 dark:group-hover:border-[#1A2F7D]' 
-                              : 'bg-gray-50/50 dark:bg-[#0D0D0D] border border-gray-100 dark:border-[#121212] group-hover:border-gray-300 dark:group-hover:border-[#202020]'
-                          }`}>
-                            <div className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                              {message.role === 'assistant' && message.isLoading ? (
-                                <StreamingContent content={message.content} />
-                              ) : (
-                                <MarkdownContent content={message.content} />
-                              )}
+        <div className="flex-1 flex justify-center items-center bg-[#202222] p-4">
+          <main className="w-full h-full flex flex-col bg-[#191A1A] relative overflow-clip rounded-lg border border-[#2C2C2D]">
+            <div className="flex-1 overflow-y-auto p-4 pt-6 pb-28 overscroll-none">
+              {selectedChatId === '' || messages.length === 0 ? (
+                <HeroSection 
+                  onSendMessage={handleSendMessage}
+                  models={settings.models.length > 0 ? settings.models : providers.flatMap(p => p.getModels('').map(m => ({
+                    id: m.id,
+                    name: m.name,
+                    provider: m.provider,
+                    description: m.description || '',
+                    isFavorite: false,
+                    isCustom: false
+                  } as Model)))}
+                  selectedModelId={selectedChat?.modelId || settings.defaultModelId}
+                  onSelectModel={(modelId) => {
+                    if (selectedChatId) {
+                      const updatedChats = chats.map((chat) =>
+                        chat.id === selectedChatId
+                          ? { ...chat, modelId }
+                          : chat
+                      );
+                      setChats(updatedChats);
+                      storage.saveChats(updatedChats);
+                    } else {
+                      const newSettings = {
+                        ...settings,
+                        defaultModelId: modelId
+                      };
+                      setSettings(newSettings);
+                      storage.saveSettings(newSettings);
+                    }
+                  }}
+                />
+              ) : (
+                <>
+                  {messages.map((message, index) => (
+                    <div key={message.id} className="flex flex-col space-y-2 mb-4">
+                      <div className={`flex items-start ${message.role === 'user' ? 'justify-end' : ''} group`}>
+                        <div className={`${message.role === 'user' ? 'ml-12' : 'mr-12'} relative group pb-10 px-2`}>
+                          {message.role === 'assistant' && message.isLoading && message.content === '' ? (
+                            <div className="inline-block p-3 rounded-lg bg-[#0D0D0D] border border-[#121212]">
+                              <ThinkingAnimation />
                             </div>
-                          </div>
-                        )}
-                        {message.role === 'assistant' && !message.isLoading && (
-                          <div className={`absolute ${hasVersions(message) && message.versions.length > 1 ? 'left-2' : 'left-3'} mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
-                            <div className="inline-flex items-center space-x-2">
-                              {hasVersions(message) && message.versions.length > 1 && (
-                                <div className="relative">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setOpenDropdownId(openDropdownId === message.id ? null : message.id);
-                                    }}
-                                    className="flex items-center space-x-1 px-2 py-1 bg-gray-50/50 dark:bg-[#0D0D0D] rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 border border-gray-100 dark:border-[#121212] group-hover:border-gray-300 dark:group-hover:border-[#202020]"
-                                  >
-                                    <History className="h-4 w-4" />
-                                    <span className="text-sm">
-                                      {(message.currentVersionIndex || 0) + 1}/{message.versions?.length}
-                                    </span>
-                                    <ChevronDown className="h-3 w-3 ml-0.5" />
-                                  </button>
-                                  {openDropdownId === message.id && (
-                                    <div 
-                                      className="absolute left-0 mt-1 w-40 bg-gray-50/50 dark:bg-[#0D0D0D] rounded-lg shadow-lg border border-gray-100 dark:border-[#121212] z-10 backdrop-blur-xl"
+                          ) : (
+                            <div className={`prose prose-invert inline-block px-4 py-3 rounded-lg transition-all duration-200 ${
+                              message.role === 'user' 
+                                ? 'bg-[#0C1020] border border-[#0E1B48] group-hover:border-[#1A2F7D]' 
+                                : 'bg-[#0D0D0D] border border-[#121212] group-hover:border-[#202020]'
+                            }`}>
+                              <div className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                                {message.role === 'assistant' && message.isLoading ? (
+                                  <StreamingContent content={message.content} />
+                                ) : (
+                                  <MarkdownContent content={message.content} />
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          {message.role === 'assistant' && !message.isLoading && (
+                            <div className={`absolute ${hasVersions(message) && message.versions.length > 1 ? 'left-2' : 'left-3'} mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+                              <div className="inline-flex items-center space-x-2">
+                                {hasVersions(message) && message.versions.length > 1 && (
+                                  <div className="relative">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenDropdownId(openDropdownId === message.id ? null : message.id);
+                                      }}
+                                      className="flex items-center space-x-1 px-2 py-1 bg-[#0D0D0D] rounded text-gray-400 hover:text-gray-200 border border-[#121212] group-hover:border-[#202020]"
                                     >
-                                      <div className="py-1">
-                                        {message.versions.map((version, index) => (
-                                          <button
-                                            key={version.id}
-                                            onClick={() => {
-                                              handleVersionSelect(message, index);
-                                              setOpenDropdownId(null);
-                                            }}
-                                            className={`w-full text-left px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors ${
-                                              index === message.currentVersionIndex 
-                                                ? 'bg-gray-100/50 dark:bg-gray-800/50' 
-                                                : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/50'
-                                            }`}
-                                          >
-                                            Version {index + 1}
-                                          </button>
-                                        ))}
+                                      <History className="h-4 w-4" />
+                                      <span className="text-sm">
+                                        {(message.currentVersionIndex || 0) + 1}/{message.versions?.length}
+                                      </span>
+                                      <ChevronDown className="h-3 w-3 ml-0.5" />
+                                    </button>
+                                    {openDropdownId === message.id && (
+                                      <div 
+                                        className="absolute left-0 mt-1 w-40 bg-[#0D0D0D] rounded-lg shadow-lg border border-[#121212] z-10 backdrop-blur-xl"
+                                      >
+                                        <div className="py-1">
+                                          {message.versions.map((version, index) => (
+                                            <button
+                                              key={version.id}
+                                              onClick={() => {
+                                                handleVersionSelect(message, index);
+                                                setOpenDropdownId(null);
+                                              }}
+                                              className={`w-full text-left px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors ${
+                                                index === message.currentVersionIndex 
+                                                  ? 'bg-gray-800/50' 
+                                                  : 'hover:bg-gray-800/50'
+                                              }`}
+                                            >
+                                              Version {index + 1}
+                                            </button>
+                                          ))}
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                              <button
-                                onClick={() => {
-                                  const button = document.getElementById(`copy-button-${message.id}`);
-                                  if (button) {
-                                    const icon = button.querySelector('svg');
-                                    if (icon) {
-                                      icon.innerHTML = '<path d="M20 6L9 17l-5-5"/>';
-                                      icon.setAttribute('stroke-width', '3');
-                                    }
-                                    setTimeout(() => {
+                                    )}
+                                  </div>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    const button = document.getElementById(`copy-button-${message.id}`);
+                                    if (button) {
+                                      const icon = button.querySelector('svg');
                                       if (icon) {
-                                        icon.innerHTML = '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"></path>';
-                                        icon.setAttribute('stroke-width', '2');
+                                        icon.innerHTML = '<path d="M20 6L9 17l-5-5"/>';
+                                        icon.setAttribute('stroke-width', '3');
                                       }
-                                    }, 500);
-                                  }
-                                  navigator.clipboard.writeText(message.content);
-                                  toast.success('Copied to clipboard');
-                                }}
-                                id={`copy-button-${message.id}`}
-                                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleRewrite(message, messages[index - 1])}
-                                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                              >
-                                <RefreshCw className="h-4 w-4" />
-                              </button>
-                              <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                Rewrite with {selectedModel?.name}
-                              </span>
+                                      setTimeout(() => {
+                                        if (icon) {
+                                          icon.innerHTML = '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"></path>';
+                                          icon.setAttribute('stroke-width', '2');
+                                        }
+                                      }, 500);
+                                    }
+                                    navigator.clipboard.writeText(message.content);
+                                    toast.success('Copied to clipboard');
+                                  }}
+                                  id={`copy-button-${message.id}`}
+                                  className="text-gray-400 hover:text-gray-200"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleRewrite(message, messages[index - 1])}
+                                  className="text-gray-400 hover:text-gray-200"
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                </button>
+                                <span className="text-sm text-gray-400 whitespace-nowrap">
+                                  Rewrite with {selectedModel?.name}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </>
-            )}
-          </div>
-          <ChatInput
-            models={settings.models}
-            selectedModelId={selectedChat?.modelId || settings.defaultModelId}
-            onSendMessage={handleSendMessage}
-            onSelectModel={(modelId) => {
-              if (selectedChatId) {
-                const updatedChats = chats.map((chat) =>
-                  chat.id === selectedChatId
-                    ? { ...chat, modelId }
-                    : chat
-                );
-                setChats(updatedChats);
-                storage.saveChats(updatedChats);
-              } else {
-                const newSettings = {
-                  ...settings,
-                  defaultModelId: modelId
-                };
-                setSettings(newSettings);
-                storage.saveSettings(newSettings);
-              }
-            }}
-            isLoading={isLoading}
-            isLargePromptVisible={selectedChatId === '' || messages.length === 0}
-          />
-        </main>
+                  ))}
+                </>
+              )}
+            </div>
+            <ChatInput
+              models={settings.models}
+              selectedModelId={selectedChat?.modelId || settings.defaultModelId}
+              onSendMessage={handleSendMessage}
+              onSelectModel={(modelId) => {
+                if (selectedChatId) {
+                  const updatedChats = chats.map((chat) =>
+                    chat.id === selectedChatId
+                      ? { ...chat, modelId }
+                      : chat
+                  );
+                  setChats(updatedChats);
+                  storage.saveChats(updatedChats);
+                } else {
+                  const newSettings = {
+                    ...settings,
+                    defaultModelId: modelId
+                  };
+                  setSettings(newSettings);
+                  storage.saveSettings(newSettings);
+                }
+              }}
+              isLoading={isLoading}
+              isLargePromptVisible={selectedChatId === '' || messages.length === 0}
+            />
+          </main>
+        </div>
       </div>
     </Suspense>
   );
