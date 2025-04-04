@@ -19,6 +19,7 @@ interface ChatInputProps {
   onSendMessage: (message: string) => void;
   onSelectModel: (modelId: string) => void;
   isLoading?: boolean;
+  isLargePromptVisible?: boolean;
 }
 
 export function ChatInput({
@@ -27,6 +28,7 @@ export function ChatInput({
   onSendMessage,
   onSelectModel,
   isLoading = false,
+  isLargePromptVisible = false,
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -222,6 +224,10 @@ export function ChatInput({
       </div>
     );
   }, [sortedModels, selectedModelId, handleModelSelect, getProviderIcon]);
+
+  if (isLargePromptVisible) {
+    return null;
+  }
 
   return (
     <form 

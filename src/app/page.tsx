@@ -1675,6 +1675,7 @@ export default function Home() {
             }
           }}
           isLoading={isLoading}
+          isLargePromptVisible={selectedChatId === '' || messages.length === 0}
         />
       </main>
     </div>
