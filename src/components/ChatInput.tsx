@@ -271,7 +271,7 @@ export function ChatInput({
             type="submit" 
             variant="ghost" 
             size="icon" 
-            className="h-12 w-12 text-gray-500 hover:text-[#1A2F7D] hover:bg-[#0D0D0D] transition-colors"
+            className="h-12 w-12 text-gray-500 hover:text-white hover:bg-[#1A2F7D]/20 transition-colors"
             disabled={isLoading || !message.trim()}
           >
             <Send className="w-4 h-4" />

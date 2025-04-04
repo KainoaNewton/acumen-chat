@@ -154,17 +154,45 @@ export const providers: Provider[] = [
     getModels: (apiKey: string) => {
       return [
         {
-          id: 'gpt-4-0125-preview',
-          name: 'GPT-4 Turbo',
+          id: 'GPT-4o',
+          name: 'GPT-4o',
           provider: 'openai',
-          description: 'Most capable GPT-4 model with up-to-date knowledge and enhanced performance.',
+          description: "OpenAI's flagship non-reasoning model.",
           apiKey,
         },
         {
-          id: 'gpt-4-vision-preview',
-          name: 'GPT-4 Vision',
+          id: 'GPT-4o-mini',
+          name: 'GPT-4o mini',
           provider: 'openai',
-          description: 'Advanced model with the ability to understand and analyze images.',
+          description: "Like gpt-4o, but faster.",
+          apiKey,
+        },
+        {
+          id: 'o3-mini',
+          name: 'o3-mini',
+          provider: 'openai',
+          description: 'A small, fast, super smart reasoning model.',
+          apiKey,
+        },
+        {
+          id: 'o1',
+          name: 'o1',
+          provider: 'openai',
+          description: 'One of the best reasoning models out there.',
+          apiKey,
+        },
+        {
+          id: 'o1-pro',
+          name: 'o1-pro',
+          provider: 'openai',
+          description: 'o1 on steroids!',
+          apiKey,
+        },
+        {
+          id: 'gpt-4.5-preview',
+          name: 'GPT-4.5',
+          provider: 'openai',
+          description: 'The best model for writing.',
           apiKey,
         }
       ];

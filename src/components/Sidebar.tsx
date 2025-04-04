@@ -54,8 +54,8 @@ export function Sidebar({
             className={cn(
               'group flex items-center gap-2 w-full rounded-md mb-1 border',
               selectedChatId === chat.id
-                ? 'bg-[#0D0D0D] border-[#333333] text-white'
-                : 'hover:bg-[#0D0D0D] border-transparent hover:border-[#202020] text-white'
+                ? 'bg-[#202020] border-transparent text-white'
+                : 'border-transparent hover:border-[#202020] text-white'
             )}
           >
             {editingChatId === chat.id ? (
@@ -71,7 +71,7 @@ export function Sidebar({
                   variant="ghost"
                   size="icon"
                   onClick={() => onSaveTitle(chat.id)}
-                  className="h-8 w-8 text-white hover:text-[#C9A4A9]"
+                  className="h-8 w-8 text-white"
                 >
                   <Check className="w-4 h-4" />
                 </Button>
@@ -97,7 +97,7 @@ export function Sidebar({
                     variant="ghost"
                     size="icon"
                     onClick={() => onEditChat(chat.id)}
-                    className="h-8 w-8 text-white hover:text-[#1A2F7D]"
+                    className="h-8 w-8 text-white"
                   >
                     <Pencil className="w-4 h-4" />
                   </Button>
@@ -105,7 +105,7 @@ export function Sidebar({
                     variant="ghost"
                     size="icon"
                     onClick={() => onDeleteChat(chat.id)}
-                    className="h-8 w-8 text-white hover:text-[#1A2F7D]"
+                    className="h-8 w-8 text-white"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -120,7 +120,7 @@ export function Sidebar({
         <Link href="/settings" prefetch={true}>
           <Button
             variant="ghost"
-            className="w-full justify-start text-left text-white hover:text-[#1A2F7D] hover:bg-[#0D0D0D]"
+            className="w-full justify-start text-left text-white hover:bg-[#0D0D0D]"
             onClick={(e) => {
               e.preventDefault();
               console.time('SettingsButtonClick-to-NavigationStart');
