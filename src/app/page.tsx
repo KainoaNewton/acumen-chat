@@ -1509,7 +1509,7 @@ export default function Home() {
           onSaveTitle={handleSaveTitle}
         />
         <main className="flex-1 flex flex-col bg-black relative overflow-clip">
-          <div className="flex-1 overflow-y-auto p-4 pt-20 pb-28 overscroll-none">
+          <div className="flex-1 overflow-y-auto p-4 pt-6 pb-28 overscroll-none">
             {selectedChatId === '' || messages.length === 0 ? (
               <HeroSection 
                 onSendMessage={handleSendMessage}
