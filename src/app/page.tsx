@@ -12,8 +12,9 @@ import { providers } from '@/lib/providers';
 import { toast } from 'sonner';
 import { MarkdownContent } from '@/components/MarkdownContent';
 import { Button } from '@/components/ui/button';
-import { Copy, RefreshCw, ArrowLeft, ArrowRight, Undo2, History, ChevronDown } from 'lucide-react';
+import { Copy, RefreshCw, ArrowLeft, ArrowRight, Undo2, History, ChevronDown, Eye, FileText, Globe } from 'lucide-react';
 import React from 'react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 // Add this new component for the thinking animation
 const ThinkingAnimation = () => (
@@ -45,6 +46,227 @@ const StreamingContent = ({ content }: { content: string }) => {
           {line.trim() === '' ? <br /> : <MarkdownContent content={line} />}
         </div>
       ))}
+    </div>
+  );
+};
+
+// Update the hero section with a large prompt box
+const HeroSection = ({ 
+  onSendMessage, 
+  models, 
+  selectedModelId, 
+  onSelectModel 
+}: { 
+  onSendMessage: (message: string) => void;
+  models: Model[];
+  selectedModelId: string;
+  onSelectModel: (modelId: string) => void;
+}) => {
+  const [input, setInput] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [activeProviders, setActiveProviders] = useState<Record<string, boolean>>({});
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  
+  // Load active providers and API keys on mount
+  useEffect(() => {
+    const savedActiveProviders = localStorage.getItem('activeProviders');
+    const savedApiKeys = localStorage.getItem('apiKeys');
+    
+    if (savedActiveProviders) {
+      setActiveProviders(JSON.parse(savedActiveProviders));
+    }
+    if (savedApiKeys) {
+      setApiKeys(JSON.parse(savedApiKeys));
+    }
+  }, []);
+
+  // Filter and sort models based on active providers
+  const availableModels = React.useMemo(() => {
+    // Use a Map to ensure unique models by ID
+    const modelMap = new Map<string, Model>();
+
+    // Add hardcoded models from providers first
+    providers.forEach(provider => {
+      if (activeProviders[provider.id]) {
+        provider.getModels(apiKeys[provider.id] || '').forEach(aiModel => {
+          modelMap.set(aiModel.id, {
+            id: aiModel.id,
+            name: aiModel.name,
+            provider: aiModel.provider,
+            description: aiModel.description || '',
+            isFavorite: false,
+            isCustom: false
+          } as Model);
+        });
+      }
+    });
+
+    // Add custom models, potentially overwriting provider models if they have the same ID
+    models.filter(model => activeProviders[model.provider]).forEach(model => {
+      modelMap.set(model.id, model);
+    });
+
+    // Convert Map back to array and sort
+    return Array.from(modelMap.values()).sort((a, b) => {
+      if (a.provider !== b.provider) {
+        return a.provider.localeCompare(b.provider);
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [models, activeProviders, apiKeys]);
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim()) {
+      onSendMessage(input);
+      setInput('');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
+  // Find selected model from available models
+  const selectedModel = availableModels.find((m) => m.id === selectedModelId);
+
+  // Get provider icon
+  const getProviderIcon = React.useCallback((provider: string) => {
+    switch (provider) {
+      case 'google':
+        return '✨';
+      case 'anthropic':
+        return '🧠';
+      case 'openai':
+        return '🤖';
+      case 'openai-compatible':
+        return '🔮';
+      case 'mistral':
+        return '🌪️';
+      case 'xai':
+        return '🤖';
+      case 'perplexity':
+        return '🔍';
+      default:
+        return '🔮';
+    }
+  }, []);
+
+  // Memoize the dropdown content
+  const dropdownContent = React.useMemo(() => {
+    return (
+      <div className="space-y-1">
+        {availableModels.map((model) => (
+          <button
+            key={model.id}
+            onClick={() => {
+              onSelectModel(model.id);
+              setIsDropdownOpen(false);
+            }}
+            className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-colors ${
+              model.id === selectedModelId
+                ? 'bg-[#0D0D0D] border-[#1A2F7D] text-white'
+                : 'bg-black border-[#202020] hover:border-[#333333] hover:bg-[#0D0D0D] text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xl" role="img" aria-label="provider icon">
+                {getProviderIcon(model.provider)}
+              </span>
+              <span className="font-medium">{model.name}</span>
+            </div>
+            <div className="flex gap-1">
+              {model.provider === 'google' && (
+                <>
+                  <div className="rounded-md bg-black/50 p-1">
+                    <Eye className="w-3 h-3 text-white/70" />
+                  </div>
+                  <div className="rounded-md bg-black/50 p-1">
+                    <FileText className="w-3 h-3 text-white/70" />
+                  </div>
+                  <div className="rounded-md bg-black/50 p-1">
+                    <Globe className="w-3 h-3 text-white/70" />
+                  </div>
+                </>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  }, [availableModels, selectedModelId, onSelectModel, getProviderIcon]);
+
+  return (
+    <div className="h-full flex flex-col items-center justify-center p-4">
+      <form onSubmit={handleSubmit} className="w-full max-w-3xl">
+        <div className="rounded-[24px] bg-[#0d0d0d] border border-[#202020] overflow-hidden relative flex flex-col">
+          <div className="flex-grow px-4 py-3">
+            <textarea
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                // Reset height to auto to get the correct scrollHeight
+                e.target.style.height = '28px';
+                // Only add extra height if content exceeds one line
+                const newHeight = Math.min(
+                  e.target.scrollHeight > 28 ? e.target.scrollHeight : 28,
+                  360
+                );
+                e.target.style.height = `${newHeight}px`;
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask anything..."
+              className="w-full bg-transparent text-white resize-none focus:outline-none text-lg overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:transparent [&::-webkit-scrollbar-thumb]:bg-[#333333] hover:[&::-webkit-scrollbar-thumb]:bg-[#444444]"
+              style={{
+                height: '28px', // Initial height for one line
+                minHeight: '28px',
+                maxHeight: '360px', // Max height for ~15 lines
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between px-4 py-4">
+            <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="h-10 px-4 gap-2 text-sm font-medium text-white hover:bg-[#141414] min-w-[180px] justify-start rounded-lg border border-[#202020] hover:border-[#333333] transition-colors"
+                >
+                  {selectedModel ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg" role="img" aria-label="provider icon">
+                        {getProviderIcon(selectedModel.provider)}
+                      </span>
+                      <span className="truncate">{selectedModel.name}</span>
+                    </div>
+                  ) : (
+                    'Select Model'
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent 
+                className="w-[300px] p-2 bg-black border border-[#202020] max-h-[400px] overflow-y-auto rounded-xl shadow-lg"
+                align="start"
+                side="top"
+                sideOffset={8}
+              >
+                {dropdownContent}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button 
+              type="submit"
+              className="rounded-full w-10 h-10 bg-[#333333] flex items-center justify-center hover:bg-[#444444] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!input.trim()}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 12h14m0 0l-7-7m7 7l-7 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   );
 };
@@ -546,29 +768,19 @@ export default function Home() {
   const handleNewChat = () => {
     // Reset UI messages when creating a new chat
     setUIMessages([]);
-    
-    const newChat: Chat = {
-      id: uuidv4(),
-      title: 'New Chat',
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      modelId: settings.defaultModelId,
-    };
-    const updatedChats = [newChat, ...chats];
-    setChats(updatedChats);
-    storage.saveChats(updatedChats);
-    setSelectedChatId(newChat.id);
-    // Save selected chat ID to localStorage for persistence
-    localStorage.setItem('lastSelectedChatId', newChat.id);
+    setMessages([]);
+    setSelectedChatId('');
+    localStorage.removeItem('lastSelectedChatId');
   };
 
   const handleSelectChat = (chatId: string) => {
     // Update the ref immediately to prevent race conditions
     lastSelectedChatRef.current = chatId;
     
-    // First, clear the current messages
+    // First, clear all message states
     setMessages([]);
+    setUIMessages([]);
+    useChatSetMessages([]);
     
     // Then set the selected chat ID
     setSelectedChatId(chatId);
@@ -579,15 +791,16 @@ export default function Home() {
     // Find the selected chat and update messages state
     const selectedChat = chats.find((chat) => chat.id === chatId);
     if (selectedChat) {
-      // When selecting a chat, reset UI messages to avoid stale state
-      setUIMessages(selectedChat.messages || []);
       // Set messages with a slight delay to ensure proper clearing first
       setTimeout(() => {
         // Only update if the selected chat hasn't changed during the timeout
         if (lastSelectedChatRef.current === chatId) {
-          setMessages(selectedChat.messages || []);
+          const chatMessages = selectedChat.messages || [];
+          setMessages(chatMessages);
+          setUIMessages(chatMessages);
+          useChatSetMessages(chatMessages);
         }
-      }, 10);
+      }, 50);
     }
   };
 
@@ -646,36 +859,35 @@ export default function Home() {
     setEditingChatId(null);
   };
 
-  // Add this useEffect to ensure chat state is always synchronized
+  // Update useEffect for chat synchronization
   useEffect(() => {
     // Only run this effect if we have a selectedChatId
     if (selectedChatId === '') {
-      // Clear messages when no chat is selected
       setMessages([]);
+      setUIMessages([]);
+      useChatSetMessages([]);
       return;
     }
 
     // If the selected chat exists in our chats list, make sure messages are synced
     const selectedChat = chats.find(chat => chat.id === selectedChatId);
     if (selectedChat) {
-      // If there's a mismatch between displayed messages and the selected chat's messages,
-      // update the displayed messages to match the selected chat
-      if (messages.length === 0 || 
-          (messages.length > 0 && selectedChat.messages.length > 0 && messages[0].id !== selectedChat.messages[0]?.id)) {
-        // Compare message arrays to avoid unnecessary updates 
-        const messagesAreDifferent = JSON.stringify(messages.map(m => m.id)) !== 
-                                     JSON.stringify(selectedChat.messages.map(m => m.id));
-        
-        if (messagesAreDifferent) {
-          console.log('[Home] Syncing messages with selected chat');
-          setMessages(selectedChat.messages || []);
-        }
+      const chatMessages = selectedChat.messages || [];
+      
+      // Compare message arrays to avoid unnecessary updates
+      const messagesAreDifferent = JSON.stringify(messages.map(m => m.id)) !== 
+                                   JSON.stringify(chatMessages.map(m => m.id));
+      
+      if (messagesAreDifferent) {
+        console.log('[Home] Syncing messages with selected chat');
+        setMessages(chatMessages);
+        setUIMessages(chatMessages);
+        useChatSetMessages(chatMessages);
       }
       return;
     }
 
     // If we get here, the selected chat doesn't exist in our chats list
-    // This should only happen if the chat was explicitly deleted
     console.log('[Home] Selected chat no longer exists, resetting state');
     
     // If there are other chats, select the first one
@@ -688,14 +900,19 @@ export default function Home() {
       // Load the messages for the newly selected chat
       const newSelectedChat = chats.find(chat => chat.id === newSelectedId);
       if (newSelectedChat?.messages) {
-        setMessages(newSelectedChat.messages);
+        const newMessages = newSelectedChat.messages;
+        setMessages(newMessages);
+        setUIMessages(newMessages);
+        useChatSetMessages(newMessages);
       }
     } else {
-      // If no chats remain, set to empty string and clear localStorage
+      // If no chats remain, clear everything
       console.log('[Home] No chats available, clearing selection');
       setSelectedChatId('');
       localStorage.removeItem('lastSelectedChatId');
       setMessages([]);
+      setUIMessages([]);
+      useChatSetMessages([]);
     }
   }, [chats, selectedChatId]); // Remove messages from dependencies to prevent infinite loop
 
@@ -961,19 +1178,12 @@ export default function Home() {
   };
 
   const generateChatTitle = (message: string): string => {
-    // If message is short enough, use it directly
-    if (message.length <= 30) {
-      return message;
-    }
-    
-    // Otherwise extract first sentence or truncate
+    // Extract first sentence if it exists
     const firstSentence = message.split(/[.!?]/)[0];
-    if (firstSentence.length <= 30) {
-      return firstSentence;
-    }
     
-    // Truncate with ellipsis if still too long
-    return message.substring(0, 27) + '...';
+    // Use first sentence if it's different from the full message,
+    // otherwise use the full message
+    return firstSentence !== message ? firstSentence : message;
   };
 
   // Add a navigation listener to detect when we're returning from settings page
@@ -1283,7 +1493,7 @@ export default function Home() {
   }, [openDropdownId]);
 
   return (
-    <div className="flex h-screen bg-black text-foreground">
+    <div className="fixed inset-0 flex overflow-clip bg-black text-foreground">
       <Sidebar
         chats={chats}
         selectedChatId={selectedChatId}
@@ -1297,193 +1507,174 @@ export default function Home() {
         onEditingTitleChange={setEditingTitle}
         onSaveTitle={handleSaveTitle}
       />
-      <main className="flex-1 flex flex-col bg-black">
-        <div className="flex-1 overflow-y-auto p-4">
-          {selectedChatId === '' ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-4">
-              <h2 className="text-2xl font-semibold mb-2">No chat selected</h2>
-              <p className="text-muted-foreground mb-4">Create a new chat or select an existing one to get started.</p>
-              <button 
-                onClick={handleNewChat} 
-                className="px-4 py-2 bg-[#202020] border border-[#333333] hover:border-[#444444] text-white rounded-md transition"
-              >
-                New Chat
-              </button>
-            </div>
+      <main className="flex-1 flex flex-col bg-black relative overflow-clip">
+        <div className="flex-1 overflow-y-auto p-4 pb-28 overscroll-none">
+          {selectedChatId === '' || messages.length === 0 ? (
+            <HeroSection 
+              onSendMessage={handleSendMessage}
+              models={settings.models.length > 0 ? settings.models : providers.flatMap(p => p.getModels('').map(m => ({
+                id: m.id,
+                name: m.name,
+                provider: m.provider,
+                description: m.description || '',
+                isFavorite: false,
+                isCustom: false
+              } as Model)))}
+              selectedModelId={selectedChat?.modelId || settings.defaultModelId}
+              onSelectModel={(modelId) => {
+                if (selectedChatId) {
+                  const updatedChats = chats.map((chat) =>
+                    chat.id === selectedChatId
+                      ? { ...chat, modelId }
+                      : chat
+                  );
+                  setChats(updatedChats);
+                  storage.saveChats(updatedChats);
+                } else {
+                  const newSettings = {
+                    ...settings,
+                    defaultModelId: modelId
+                  };
+                  setSettings(newSettings);
+                  storage.saveSettings(newSettings);
+                }
+              }}
+            />
           ) : (
-            messages.map((message, index) => (
-              <div key={message.id} className="flex flex-col space-y-2 mb-4">
-                <div className={`flex items-start ${message.role === 'user' ? 'justify-end' : ''} group`}>
-                  <div className={`${message.role === 'user' ? 'ml-12' : 'mr-12'} relative group pb-10 px-2`}>
-                    {message.role === 'assistant' && message.isLoading && message.content === '' ? (
-                      <div className="inline-block p-3 rounded-lg bg-gray-50/50 dark:bg-[#0D0D0D] border border-gray-100 dark:border-[#121212]">
-                        <ThinkingAnimation />
-                      </div>
-                    ) : (
-                      <div className={`prose dark:prose-invert inline-block px-4 py-3 rounded-lg transition-all duration-200 ${
-                        message.role === 'user' 
-                          ? 'bg-blue-50/50 dark:bg-[#0C1020] border border-blue-100 dark:border-[#0E1B48] group-hover:border-blue-200 dark:group-hover:border-[#1A2F7D]' 
-                          : 'bg-gray-50/50 dark:bg-[#0D0D0D] border border-gray-100 dark:border-[#121212] group-hover:border-gray-300 dark:group-hover:border-[#202020]'
-                      }`}>
-                        <div className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                          {message.role === 'assistant' && message.isLoading ? (
-                            <StreamingContent content={message.content} />
-                          ) : (
-                            <MarkdownContent content={message.content} />
-                          )}
+            <>
+              {messages.map((message, index) => (
+                <div key={message.id} className="flex flex-col space-y-2 mb-4">
+                  <div className={`flex items-start ${message.role === 'user' ? 'justify-end' : ''} group`}>
+                    <div className={`${message.role === 'user' ? 'ml-12' : 'mr-12'} relative group pb-10 px-2`}>
+                      {message.role === 'assistant' && message.isLoading && message.content === '' ? (
+                        <div className="inline-block p-3 rounded-lg bg-gray-50/50 dark:bg-[#0D0D0D] border border-gray-100 dark:border-[#121212]">
+                          <ThinkingAnimation />
                         </div>
-                      </div>
-                    )}
-                    
-                    {message.role === 'assistant' && !message.isLoading && (
-                      <div className={`absolute ${hasVersions(message) && message.versions.length > 1 ? 'left-2' : 'left-3'} mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
-                        <div className="inline-flex items-center space-x-2">
-                          {hasVersions(message) && message.versions.length > 1 && (
-                            <div className="relative">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenDropdownId(openDropdownId === message.id ? null : message.id);
-                                }}
-                                className="flex items-center space-x-1 px-2 py-1 bg-gray-50/50 dark:bg-[#0D0D0D] rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 border border-gray-100 dark:border-[#121212] group-hover:border-gray-300 dark:group-hover:border-[#202020]"
-                              >
-                                <History className="h-4 w-4" />
-                                <span className="text-sm">
-                                  {(message.currentVersionIndex || 0) + 1}/{message.versions?.length}
-                                </span>
-                                <ChevronDown className="h-3 w-3 ml-0.5" />
-                              </button>
-                              {openDropdownId === message.id && (
-                                <div 
-                                  className="absolute left-0 mt-1 w-40 bg-gray-50/50 dark:bg-[#0D0D0D] rounded-lg shadow-lg border border-gray-100 dark:border-[#121212] z-10 backdrop-blur-xl"
+                      ) : (
+                        <div className={`prose dark:prose-invert inline-block px-4 py-3 rounded-lg transition-all duration-200 ${
+                          message.role === 'user' 
+                            ? 'bg-blue-50/50 dark:bg-[#0C1020] border border-blue-100 dark:border-[#0E1B48] group-hover:border-blue-200 dark:group-hover:border-[#1A2F7D]' 
+                            : 'bg-gray-50/50 dark:bg-[#0D0D0D] border border-gray-100 dark:border-[#121212] group-hover:border-gray-300 dark:group-hover:border-[#202020]'
+                        }`}>
+                          <div className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                            {message.role === 'assistant' && message.isLoading ? (
+                              <StreamingContent content={message.content} />
+                            ) : (
+                              <MarkdownContent content={message.content} />
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {message.role === 'assistant' && !message.isLoading && (
+                        <div className={`absolute ${hasVersions(message) && message.versions.length > 1 ? 'left-2' : 'left-3'} mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+                          <div className="inline-flex items-center space-x-2">
+                            {hasVersions(message) && message.versions.length > 1 && (
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdownId(openDropdownId === message.id ? null : message.id);
+                                  }}
+                                  className="flex items-center space-x-1 px-2 py-1 bg-gray-50/50 dark:bg-[#0D0D0D] rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 border border-gray-100 dark:border-[#121212] group-hover:border-gray-300 dark:group-hover:border-[#202020]"
                                 >
-                                  <div className="py-1">
-                                    {message.versions.map((version, index) => (
-                                      <button
-                                        key={version.id}
-                                        onClick={() => {
-                                          handleVersionSelect(message, index);
-                                          setOpenDropdownId(null);
-                                        }}
-                                        className={`w-full text-left px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors ${
-                                          index === message.currentVersionIndex 
-                                            ? 'bg-gray-100/50 dark:bg-gray-800/50' 
-                                            : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/50'
-                                        }`}
-                                      >
-                                        Version {index + 1}
-                                      </button>
-                                    ))}
+                                  <History className="h-4 w-4" />
+                                  <span className="text-sm">
+                                    {(message.currentVersionIndex || 0) + 1}/{message.versions?.length}
+                                  </span>
+                                  <ChevronDown className="h-3 w-3 ml-0.5" />
+                                </button>
+                                {openDropdownId === message.id && (
+                                  <div 
+                                    className="absolute left-0 mt-1 w-40 bg-gray-50/50 dark:bg-[#0D0D0D] rounded-lg shadow-lg border border-gray-100 dark:border-[#121212] z-10 backdrop-blur-xl"
+                                  >
+                                    <div className="py-1">
+                                      {message.versions.map((version, index) => (
+                                        <button
+                                          key={version.id}
+                                          onClick={() => {
+                                            handleVersionSelect(message, index);
+                                            setOpenDropdownId(null);
+                                          }}
+                                          className={`w-full text-left px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors ${
+                                            index === message.currentVersionIndex 
+                                              ? 'bg-gray-100/50 dark:bg-gray-800/50' 
+                                              : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/50'
+                                          }`}
+                                        >
+                                          Version {index + 1}
+                                        </button>
+                                      ))}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          <button
-                            onClick={() => {
-                              const button = document.getElementById(`copy-button-${message.id}`);
-                              if (button) {
-                                const icon = button.querySelector('svg');
-                                if (icon) {
-                                  icon.innerHTML = '<path d="M20 6L9 17l-5-5"/>';
-                                  icon.setAttribute('stroke-width', '3');
-                                }
-                                setTimeout(() => {
+                                )}
+                              </div>
+                            )}
+                            <button
+                              onClick={() => {
+                                const button = document.getElementById(`copy-button-${message.id}`);
+                                if (button) {
+                                  const icon = button.querySelector('svg');
                                   if (icon) {
-                                    icon.innerHTML = '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"></path>';
-                                    icon.setAttribute('stroke-width', '2');
+                                    icon.innerHTML = '<path d="M20 6L9 17l-5-5"/>';
+                                    icon.setAttribute('stroke-width', '3');
                                   }
-                                }, 500);
-                              }
-                              navigator.clipboard.writeText(message.content);
-                              toast.success('Copied to clipboard');
-                            }}
-                            id={`copy-button-${message.id}`}
-                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleRewrite(message, messages[index - 1])}
-                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                          </button>
-                          <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                            Rewrite with {selectedModel?.name}
-                          </span>
+                                  setTimeout(() => {
+                                    if (icon) {
+                                      icon.innerHTML = '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"></path>';
+                                      icon.setAttribute('stroke-width', '2');
+                                    }
+                                  }, 500);
+                                }
+                                navigator.clipboard.writeText(message.content);
+                                toast.success('Copied to clipboard');
+                              }}
+                              id={`copy-button-${message.id}`}
+                              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleRewrite(message, messages[index - 1])}
+                              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </button>
+                            <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                              Rewrite with {selectedModel?.name}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </>
           )}
         </div>
         <ChatInput
           models={settings.models}
           selectedModelId={selectedChat?.modelId || settings.defaultModelId}
           onSendMessage={handleSendMessage}
-          isLoading={isLoading}
           onSelectModel={(modelId) => {
-            console.log('[Home] Model selected:', modelId);
-            
-            // Batch all state updates together
-            React.startTransition(() => {
-              if (selectedChatId === '') {
-                // Create new chat
-                const chat: Chat = {
-                  id: uuidv4(),
-                  title: 'New Chat',
-                  messages: [],
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                  modelId: modelId,
-                };
-                
-                // Update all states in one go
-                const updatedChats = [chat, ...chats];
-                const newSettings = {
-                  ...settings,
-                  defaultModelId: modelId,
-                };
-                
-                // Persist changes
-                storage.saveChats(updatedChats);
-                storage.saveSettings(newSettings);
-                localStorage.setItem('lastSelectedChatId', chat.id);
-                
-                // Update states
-                setChats(updatedChats);
-                setSelectedChatId(chat.id);
-                setSettings(newSettings);
-                setUIMessages([]);
-                setMessages([]);
-              } else {
-                // Update existing chat
-                const currentUIMessages = uiMessages.length > messages.length ? uiMessages : messages;
-                const updatedChats = chats.map((chat) =>
-                  chat.id === selectedChatId
-                    ? { ...chat, modelId }
-                    : chat
-                );
-                const newSettings = {
-                  ...settings,
-                  defaultModelId: modelId,
-                };
-                
-                // Persist changes
-                storage.saveChats(updatedChats);
-                storage.saveSettings(newSettings);
-                
-                // Update states
-                setChats(updatedChats);
-                setSettings(newSettings);
-                setMessages(currentUIMessages);
-              }
-            });
+            if (selectedChatId) {
+              const updatedChats = chats.map((chat) =>
+                chat.id === selectedChatId
+                  ? { ...chat, modelId }
+                  : chat
+              );
+              setChats(updatedChats);
+              storage.saveChats(updatedChats);
+            } else {
+              const newSettings = {
+                ...settings,
+                defaultModelId: modelId
+              };
+              setSettings(newSettings);
+              storage.saveSettings(newSettings);
+            }
           }}
+          isLoading={isLoading}
         />
       </main>
     </div>

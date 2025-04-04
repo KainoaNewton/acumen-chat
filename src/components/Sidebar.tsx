@@ -19,6 +19,14 @@ interface SidebarProps {
   onSaveTitle: (chatId: string) => void;
 }
 
+// Helper function to format chat titles
+const formatChatTitle = (title: string): string => {
+  if (title.length <= 18) {
+    return title;
+  }
+  return title.substring(0, 17) + '...';
+};
+
 export function Sidebar({
   chats,
   selectedChatId,
@@ -85,14 +93,14 @@ export function Sidebar({
                 </Button>
               </div>
             ) : (
-              <>
+              <div className="relative w-full">
                 <button
                   onClick={() => onSelectChat(chat.id)}
-                  className="flex-1 text-left px-3 py-2 text-white"
+                  className="w-full text-left px-3 py-2 text-white truncate pr-20"
                 >
                   {chat.title}
                 </button>
-                <div className="opacity-0 group-hover:opacity-100 flex pr-2">
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex transition-opacity">
                   <Button
                     variant="ghost"
                     size="icon"
@@ -110,7 +118,7 @@ export function Sidebar({
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
-              </>
+              </div>
             )}
           </div>
         ))}

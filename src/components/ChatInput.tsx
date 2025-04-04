@@ -141,7 +141,7 @@ export function ChatInput({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       console.log('[ChatInput] Enter key pressed (without shift)');
       e.preventDefault();
@@ -223,94 +223,77 @@ export function ChatInput({
     );
   }, [sortedModels, selectedModelId, handleModelSelect, getProviderIcon]);
 
-  // Memoize the dropdown trigger button to prevent unnecessary re-renders
-  const dropdownTrigger = React.useMemo(() => {
-    return (
-      <Button 
-        variant="ghost" 
-        className="h-12 px-4 gap-2 text-sm font-medium text-white hover:bg-[#141414] min-w-[180px] justify-start rounded-l-xl border-r border-[#202020]"
-        onClick={(e) => {
-          e.preventDefault();
-          setIsDropdownOpen(prev => !prev);
-        }}
-        disabled={isLoading}
-      >
-        {selectedModel ? (
-          <div className="flex items-center gap-2">
-            <span className="text-lg" role="img" aria-label="provider icon">
-              {getProviderIcon(selectedModel.provider)}
-            </span>
-            <span className="truncate">{selectedModel.name}</span>
-          </div>
-        ) : (
-          'Select Model'
-        )}
-      </Button>
-    );
-  }, [selectedModel, isLoading, getProviderIcon]);
-
   return (
-    <form onSubmit={handleSubmit} className="p-4">
-      <div className="relative flex items-center gap-2 rounded-xl border border-[#202020] bg-black backdrop-blur shadow-sm">
-        <DropdownMenu open={isDropdownOpen} onOpenChange={handleDropdownOpenChange}>
-          <DropdownMenuTrigger asChild>
-            {dropdownTrigger}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent 
-            className="w-[300px] p-2 bg-black border border-[#202020] max-h-[400px] overflow-y-auto rounded-xl shadow-lg"
-            align="start"
-            side="top"
-            sideOffset={8}
-          >
-            {dropdownContent}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="relative flex-1">
-          <Textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder={isLoading ? "AI is thinking..." : "Type your message..."}
-            className="flex-1 min-h-[48px] max-h-[400px] bg-transparent border-0 focus:ring-0 resize-none py-3.5 px-4 text-sm text-white placeholder:text-gray-500 pr-10"
-            onKeyDown={handleKeyDown}
-            disabled={isLoading}
-          />
-          
-          {message.trim() && !isLoading && (
-            <Button 
-              type="button" 
-              variant="ghost" 
-              size="icon" 
-              className="absolute right-3 top-3 h-6 w-6 text-gray-500 hover:text-white"
-              onClick={() => setMessage('')}
+    <form 
+      onSubmit={handleSubmit} 
+      className="fixed bottom-4 left-[calc(50%+var(--sidebar-width)/2)] -translate-x-1/2 z-10 w-full max-w-[900px] px-4"
+    >
+      <div className="flex flex-col items-center">
+        <div className="flex items-center h-14 rounded-[20px] bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden w-[600px] min-w-fit max-w-full transition-all duration-200">
+          <DropdownMenu open={isDropdownOpen} onOpenChange={handleDropdownOpenChange}>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className="h-9 px-3 ml-2 gap-2 text-[15px] font-medium text-white bg-[#0d0d0d] rounded-lg min-w-[140px] justify-start border border-white/10 shrink-0"
+              >
+                {selectedModel ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-base" role="img" aria-label="provider icon">
+                      {getProviderIcon(selectedModel.provider)}
+                    </span>
+                    <span className="truncate font-medium">{selectedModel.name}</span>
+                  </div>
+                ) : (
+                  'Select Model'
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent 
+              className="w-[300px] p-2 bg-black border border-[#202020] max-h-[400px] overflow-y-auto rounded-xl shadow-lg"
+              align="start"
+              side="top"
+              sideOffset={8}
             >
-              <X className="h-3 w-3" />
-            </Button>
-          )}
-        </div>
+              {dropdownContent}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-        {isLoading ? (
-          <div className="h-12 w-12 flex items-center justify-center text-gray-500">
-            <Loader2 className="w-4 h-4 animate-spin" />
+          <div className="flex-1 flex items-center min-w-[200px]">
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={isLoading ? "AI is thinking..." : "Ask anything..."}
+              className="w-full h-full bg-transparent text-white text-[15px] placeholder:text-gray-400 focus:outline-none px-4"
+              disabled={isLoading}
+              style={{ 
+                width: message ? `${Math.min(Math.max(message.length * 10, 200), 600)}px` : '200px',
+              }}
+            />
           </div>
-        ) : (
-          <Button 
-            type="submit" 
-            variant="ghost" 
-            size="icon" 
-            className="h-12 w-12 text-gray-500 hover:text-white hover:bg-[#1A2F7D]/20 transition-colors"
-            disabled={isLoading || !message.trim()}
+
+          <button 
+            type="submit"
+            className="h-9 w-9 mr-2 rounded-full bg-white flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            disabled={!message.trim() || isLoading}
           >
-            <Send className="w-4 h-4" />
-          </Button>
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-black" />
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 12h14m0 0l-7-7m7 7l-7 7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </button>
+        </div>
+        
+        {isLoading && (
+          <div className="mt-2 text-xs text-gray-500 text-center animate-pulse w-full">
+            AI is generating a response...
+          </div>
         )}
       </div>
-      
-      {isLoading && (
-        <div className="mt-2 text-xs text-gray-500 text-center animate-pulse">
-          AI is generating a response...
-        </div>
-      )}
     </form>
   );
 } 
