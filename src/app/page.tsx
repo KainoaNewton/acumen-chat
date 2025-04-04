@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { MarkdownContent } from '@/components/MarkdownContent';
 import { Button } from '@/components/ui/button';
 import { Copy, RefreshCw, ArrowLeft, ArrowRight, Undo2, History, ChevronDown } from 'lucide-react';
+import React from 'react';
 
 // Add this new component for the thinking animation
 const ThinkingAnimation = () => (
@@ -208,7 +209,7 @@ export default function Home() {
       console.log('[Home] No API keys found in state or localStorage. Adding a prompt to add API keys.');
       toast.error('No API keys found. Please add API keys in settings to use the chat.');
     }
-  }, [apiKeys]);
+  }, []); // Remove apiKeys from dependencies to prevent infinite loop
 
   const selectedChat = chats.find((chat) => chat.id === selectedChatId);
   
@@ -487,22 +488,32 @@ export default function Home() {
       const selectedChat = chats.find((chat) => chat.id === selectedChatId);
       if (selectedChat) {
         console.log('[Home] Loading messages for selected chat:', selectedChatId);
-        // First clear existing messages
-        useChatSetMessages([]);
-        // Then set the correct messages with a slight delay
-        setTimeout(() => {
-          // Only update if the selected chat hasn't changed during the timeout
-          if (lastSelectedChatRef.current === selectedChatId) {
-            useChatSetMessages(selectedChat.messages || []);
-          }
-        }, 10);
+        
+        // Check if messages already match the selected chat's messages
+        const messagesMatch = messages.length === selectedChat.messages.length && 
+                              (messages.length === 0 || messages[0].id === selectedChat.messages[0]?.id);
+        
+        if (!messagesMatch) {
+          // First clear existing messages
+          useChatSetMessages([]);
+          // Then set the correct messages with a slight delay
+          setTimeout(() => {
+            // Only update if the selected chat hasn't changed during the timeout
+            if (lastSelectedChatRef.current === selectedChatId) {
+              useChatSetMessages(selectedChat.messages || []);
+            }
+          }, 10);
+        }
       }
     } else {
-      console.log('[Home] No chat selected, clearing messages');
-      useChatSetMessages([]);
-      setMessages([]);
+      // Only clear messages if we actually have a change in selectedChatId
+      if (messages.length > 0) {
+        console.log('[Home] No chat selected, clearing messages');
+        useChatSetMessages([]);
+        setMessages([]);
+      }
     }
-  }, [selectedChatId, chats, useChatSetMessages]);
+  }, [selectedChatId, chats]);  // No need to add useChatSetMessages to dependencies
 
   // Update body params when model changes
   useEffect(() => {
@@ -513,7 +524,7 @@ export default function Home() {
       console.log('[Home] Preserving current UI messages after model change');
       useChatSetMessages(uiMessages);
     }
-  }, [selectedModelWithApiKey, useChatSetMessages, uiMessages]);
+  }, [selectedModelWithApiKey, uiMessages]); // Remove useChatSetMessages from dependencies
 
   const handleNewChat = () => {
     // Reset UI messages when creating a new chat
@@ -633,9 +644,15 @@ export default function Home() {
       // If there's a mismatch between displayed messages and the selected chat's messages,
       // update the displayed messages to match the selected chat
       if (messages.length === 0 || 
-          (messages.length > 0 && messages[0].id !== selectedChat.messages[0]?.id)) {
-        console.log('[Home] Syncing messages with selected chat');
-        setMessages(selectedChat.messages || []);
+          (messages.length > 0 && selectedChat.messages.length > 0 && messages[0].id !== selectedChat.messages[0]?.id)) {
+        // Compare message arrays to avoid unnecessary updates 
+        const messagesAreDifferent = JSON.stringify(messages.map(m => m.id)) !== 
+                                     JSON.stringify(selectedChat.messages.map(m => m.id));
+        
+        if (messagesAreDifferent) {
+          console.log('[Home] Syncing messages with selected chat');
+          setMessages(selectedChat.messages || []);
+        }
       }
       return;
     }
@@ -663,7 +680,7 @@ export default function Home() {
       localStorage.removeItem('lastSelectedChatId');
       setMessages([]);
     }
-  }, [chats, selectedChatId, messages]);
+  }, [chats, selectedChatId]); // Remove messages from dependencies to prevent infinite loop
 
   // Update handleSendMessage to be more resilient
   const handleSendMessage = async (message: string, targetMessageId?: string) => {
@@ -1394,55 +1411,61 @@ export default function Home() {
           isLoading={isLoading}
           onSelectModel={(modelId) => {
             console.log('[Home] Model selected:', modelId);
-            const newChat = selectedChatId === '';
             
-            if (newChat) {
-              console.log('[Home] Creating new chat with selected model');
-              const chat: Chat = {
-                id: uuidv4(),
-                title: 'New Chat',
-                messages: [],
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                modelId: modelId,
-              };
-              const updatedChats = [chat, ...chats];
-              setChats(updatedChats);
-              storage.saveChats(updatedChats);
-              setSelectedChatId(chat.id);
-              localStorage.setItem('lastSelectedChatId', chat.id);
-              
-              // Reset UI messages for new chat
-              setUIMessages([]);
-              setMessages([]);
-            } else {
-              console.log('[Home] Updating existing chat with new model');
-              
-              // Save current UI state (including any unsaved messages)
-              // Use the most up-to-date source - either our uiMessages or the current messages
-              const currentUIMessages = uiMessages.length > messages.length ? uiMessages : messages;
-              console.log('[Home] Preserving messages:', currentUIMessages.length);
-              
-              // Update the selectedChat's modelId but keep the messages in storage
-              const updatedChats = chats.map((chat) =>
-                chat.id === selectedChatId
-                  ? { ...chat, modelId }
-                  : chat
-              );
-              setChats(updatedChats);
-              storage.saveChats(updatedChats);
-              
-              // Explicitly preserve the UI state by setting messages again
-              setMessages(currentUIMessages);
-            }
-
-            // Update default model
-            const newSettings = {
-              ...settings,
-              defaultModelId: modelId,
-            };
-            setSettings(newSettings);
-            storage.saveSettings(newSettings);
+            // Batch all state updates together
+            React.startTransition(() => {
+              if (selectedChatId === '') {
+                // Create new chat
+                const chat: Chat = {
+                  id: uuidv4(),
+                  title: 'New Chat',
+                  messages: [],
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                  modelId: modelId,
+                };
+                
+                // Update all states in one go
+                const updatedChats = [chat, ...chats];
+                const newSettings = {
+                  ...settings,
+                  defaultModelId: modelId,
+                };
+                
+                // Persist changes
+                storage.saveChats(updatedChats);
+                storage.saveSettings(newSettings);
+                localStorage.setItem('lastSelectedChatId', chat.id);
+                
+                // Update states
+                setChats(updatedChats);
+                setSelectedChatId(chat.id);
+                setSettings(newSettings);
+                setUIMessages([]);
+                setMessages([]);
+              } else {
+                // Update existing chat
+                const currentUIMessages = uiMessages.length > messages.length ? uiMessages : messages;
+                const updatedChats = chats.map((chat) =>
+                  chat.id === selectedChatId
+                    ? { ...chat, modelId }
+                    : chat
+                );
+                const newSettings = {
+                  ...settings,
+                  defaultModelId: modelId,
+                };
+                
+                // Persist changes
+                storage.saveChats(updatedChats);
+                storage.saveSettings(newSettings);
+                
+                // Update states
+                setChats(updatedChats);
+                setSettings(newSettings);
+                setMessages(currentUIMessages);
+              }
+            });
           }}
         />
       </main>

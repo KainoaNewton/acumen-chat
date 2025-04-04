@@ -95,8 +95,21 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAllHistory = () => {
-    storage.clearHistory();
-    toast.success('All chat history has been deleted');
+    try {
+      // First close the dialog to prevent any state updates from its unmounting
+      setIsDeleteDialogOpen(false);
+      
+      // Clear the history from storage
+      storage.clearHistory();
+      
+      // Clear any local state that might trigger updates
+      localStorage.removeItem('lastSelectedChatId');
+      
+      toast.success('All chat history has been deleted');
+    } catch (error) {
+      console.error('[Settings] Error deleting history:', error);
+      toast.error('Failed to delete chat history');
+    }
   };
 
   return (
