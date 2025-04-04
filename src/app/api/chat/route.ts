@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { Anthropic } from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
-import { StreamingTextResponse, Message } from 'ai';
+import { Message } from 'ai';
 
 // This API handles chat requests and returns text streams
 // All AI responses support markdown formatting including:
@@ -169,10 +169,10 @@ export async function POST(req: Request) {
             
             return new Response(responseText);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('[API] Google AI error:', error);
-          const errorMessage = error.message || 'Unknown error';
-          const userMessage = errorMessage.includes('API key not valid') 
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          const userMessage = error instanceof Error && error.message.includes('API key not valid') 
             ? 'Invalid Google API key. Please check your API key in settings.'
             : `Google AI error: ${errorMessage}`;
           
@@ -210,10 +210,10 @@ export async function POST(req: Request) {
           return new Response(stream, { 
             headers: { 'Content-Type': 'text/plain; charset=utf-8' } 
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('[API] Anthropic error:', error);
-          const errorMessage = error.message || 'Unknown error';
-          const userMessage = errorMessage.includes('401') || errorMessage.includes('auth')
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          const userMessage = error instanceof Error && (error.message.includes('401') || error.message.includes('auth'))
             ? 'Invalid Anthropic API key. Please check your API key in settings.'
             : `Anthropic error: ${errorMessage}`;
           
@@ -245,10 +245,10 @@ export async function POST(req: Request) {
           return new Response(stream, { 
             headers: { 'Content-Type': 'text/plain; charset=utf-8' } 
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('[API] OpenAI error:', error);
-          const errorMessage = error.message || 'Unknown error';
-          const userMessage = errorMessage.includes('401') || errorMessage.includes('auth')
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          const userMessage = error instanceof Error && (error.message.includes('401') || error.message.includes('auth'))
             ? 'Invalid OpenAI API key. Please check your API key in settings.'
             : `OpenAI error: ${errorMessage}`;
           
@@ -265,7 +265,7 @@ export async function POST(req: Request) {
           
           // Validate and format the messages for Mistral
           // Mistral requires 'user' or 'assistant' roles, and each message must have content
-          const validMessages = messages.filter((message: any) => {
+          const validMessages = messages.filter((message: Message) => {
             // Check if message has required properties
             const hasValidRole = message.role === 'user' || message.role === 'assistant' || message.role === 'system';
             const hasContent = typeof message.content === 'string' && message.content.trim() !== '';
@@ -273,14 +273,14 @@ export async function POST(req: Request) {
           });
           
           // Convert any roles that don't match Mistral's expected format
-          const mistralMessages = validMessages.map((message: any) => ({
+          const mistralMessages = validMessages.map((message: Message) => ({
             role: message.role === 'system' ? 'user' : message.role, // Mistral doesn't support system role
             content: message.content
           }));
           
           // Log for debugging
           console.log('[API] Formatted Mistral messages:', 
-            JSON.stringify(mistralMessages.map((m: any) => ({ role: m.role, contentLength: m.content.length }))));
+            JSON.stringify(mistralMessages.map((m: { role: string; content: string }) => ({ role: m.role, contentLength: m.content.length }))));
           
           if (mistralMessages.length === 0) {
             throw new Error('No valid messages to send to Mistral');
@@ -359,7 +359,7 @@ export async function POST(req: Request) {
                     buffer += new TextDecoder().decode(value, { stream: true });
                     
                     // Process any complete SSE messages in the buffer
-                    let lines = buffer.split('\n');
+                    const lines = buffer.split('\n');
                     buffer = lines.pop() || ''; // Keep the last incomplete line in the buffer
                     
                     for (const line of lines) {
@@ -401,9 +401,9 @@ export async function POST(req: Request) {
           return new Response(stream, { 
             headers: { 'Content-Type': 'text/plain; charset=utf-8' } 
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('[API] Mistral error:', error);
-          return new Response(JSON.stringify({ error: `Mistral error: ${error.message || 'Unknown error'}` }), { 
+          return new Response(JSON.stringify({ error: `Mistral error: ${error instanceof Error ? error.message : 'Unknown error'}` }), { 
             status: 500, 
             headers: { 'Content-Type': 'application/json' } 
           });
@@ -416,14 +416,14 @@ export async function POST(req: Request) {
           
           // Validate and format the messages for xAI/Groq
           // Only allow user, assistant, and system roles
-          const validMessages = messages.filter((message: any) => {
+          const validMessages = messages.filter((message: Message) => {
             const hasValidRole = message.role === 'user' || message.role === 'assistant' || message.role === 'system';
             const hasContent = typeof message.content === 'string' && message.content.trim() !== '';
             return hasValidRole && hasContent;
           });
           
           console.log('[API] Formatted xAI messages:', 
-            JSON.stringify(validMessages.map((m: any) => ({ role: m.role, contentLength: m.content.length }))));
+            JSON.stringify(validMessages.map((m: { role: string; content: string }) => ({ role: m.role, contentLength: m.content.length }))));
           
           if (validMessages.length === 0) {
             throw new Error('No valid messages to send to xAI');
@@ -501,7 +501,7 @@ export async function POST(req: Request) {
                     buffer += new TextDecoder().decode(value, { stream: true });
                     
                     // Process any complete SSE messages in the buffer
-                    let lines = buffer.split('\n');
+                    const lines = buffer.split('\n');
                     buffer = lines.pop() || ''; // Keep the last incomplete line in the buffer
                     
                     for (const line of lines) {
@@ -544,9 +544,9 @@ export async function POST(req: Request) {
           return new Response(stream, { 
             headers: { 'Content-Type': 'text/plain; charset=utf-8' } 
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('[API] xAI error:', error);
-          return new Response(JSON.stringify({ error: `xAI error: ${error.message || 'Unknown error'}` }), { 
+          return new Response(JSON.stringify({ error: `xAI error: ${error instanceof Error ? error.message : 'Unknown error'}` }), { 
             status: 500, 
             headers: { 'Content-Type': 'application/json' } 
           });
@@ -558,14 +558,14 @@ export async function POST(req: Request) {
           console.log('[API] Using Perplexity with model:', model.id);
           
           // Validate and format the messages for Perplexity
-          const validMessages = messages.filter((message: any) => {
+          const validMessages = messages.filter((message: Message) => {
             const hasValidRole = message.role === 'user' || message.role === 'assistant' || message.role === 'system';
             const hasContent = typeof message.content === 'string' && message.content.trim() !== '';
             return hasValidRole && hasContent;
           });
           
           console.log('[API] Formatted Perplexity messages:', 
-            JSON.stringify(validMessages.map((m: any) => ({ role: m.role, contentLength: m.content.length }))));
+            JSON.stringify(validMessages.map((m: { role: string; content: string }) => ({ role: m.role, contentLength: m.content.length }))));
           
           if (validMessages.length === 0) {
             throw new Error('No valid messages to send to Perplexity');
@@ -643,7 +643,7 @@ export async function POST(req: Request) {
                     buffer += new TextDecoder().decode(value, { stream: true });
                     
                     // Process any complete SSE messages in the buffer
-                    let lines = buffer.split('\n');
+                    const lines = buffer.split('\n');
                     buffer = lines.pop() || ''; // Keep the last incomplete line in the buffer
                     
                     for (const line of lines) {
@@ -686,9 +686,9 @@ export async function POST(req: Request) {
           return new Response(stream, { 
             headers: { 'Content-Type': 'text/plain; charset=utf-8' } 
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('[API] Perplexity error:', error);
-          return new Response(JSON.stringify({ error: `Perplexity error: ${error.message || 'Unknown error'}` }), { 
+          return new Response(JSON.stringify({ error: `Perplexity error: ${error instanceof Error ? error.message : 'Unknown error'}` }), { 
             status: 500, 
             headers: { 'Content-Type': 'application/json' } 
           });
@@ -700,14 +700,14 @@ export async function POST(req: Request) {
           console.log('[API] Using LMStudio with model:', model.id);
           
           // Validate and format the messages for LMStudio
-          const validMessages = messages.filter((message: any) => {
+          const validMessages = messages.filter((message: Message) => {
             const hasValidRole = message.role === 'user' || message.role === 'assistant' || message.role === 'system';
             const hasContent = typeof message.content === 'string' && message.content.trim() !== '';
             return hasValidRole && hasContent;
           });
           
           console.log('[API] Formatted LMStudio messages:', 
-            JSON.stringify(validMessages.map((m: any) => ({ role: m.role, contentLength: m.content.length }))));
+            JSON.stringify(validMessages.map((m: { role: string; content: string }) => ({ role: m.role, contentLength: m.content.length }))));
           
           if (validMessages.length === 0) {
             throw new Error('No valid messages to send to LMStudio');
@@ -785,7 +785,7 @@ export async function POST(req: Request) {
                     buffer += new TextDecoder().decode(value, { stream: true });
                     
                     // Process any complete SSE messages in the buffer
-                    let lines = buffer.split('\n');
+                    const lines = buffer.split('\n');
                     buffer = lines.pop() || ''; // Keep the last incomplete line in the buffer
                     
                     for (const line of lines) {
@@ -828,9 +828,9 @@ export async function POST(req: Request) {
           return new Response(stream, { 
             headers: { 'Content-Type': 'text/plain; charset=utf-8' } 
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('[API] LMStudio error:', error);
-          return new Response(JSON.stringify({ error: `LMStudio error: ${error.message || 'Unknown error'}` }), { 
+          return new Response(JSON.stringify({ error: `LMStudio error: ${error instanceof Error ? error.message : 'Unknown error'}` }), { 
             status: 500, 
             headers: { 'Content-Type': 'application/json' } 
           });
@@ -843,9 +843,9 @@ export async function POST(req: Request) {
           headers: { 'Content-Type': 'application/json' } 
         });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API] Unexpected error:', error);
-    return new Response(JSON.stringify({ error: `Something went wrong: ${error.message || 'Unknown error'}. Please try again later.` }), { 
+    return new Response(JSON.stringify({ error: `Something went wrong: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again later.` }), { 
       status: 500, 
       headers: { 'Content-Type': 'application/json' } 
     });

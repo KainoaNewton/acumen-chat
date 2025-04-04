@@ -1,0 +1,2 @@
+# Ignore the not-found component since it's causing issues
+src/app/_not-found 

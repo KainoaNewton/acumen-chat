@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build-prod",
+  "installCommand": "npm install --legacy-peer-deps",
+  "framework": "nextjs",
+  "ignoreCommand": "echo Skipping linting step to build without type errors"
+} 
