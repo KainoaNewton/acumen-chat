@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { ModelsTab } from '@/components/ModelsTab';
@@ -11,6 +10,7 @@ import { Settings, Model } from '@/types/chat';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 export default function SettingsPage() {
   // Use a ref to safely manage our timer logic without triggering warnings
@@ -95,8 +95,21 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAllHistory = () => {
-    storage.clearHistory();
-    toast.success('All chat history has been deleted');
+    try {
+      // First close the dialog to prevent any state updates from its unmounting
+      setIsDeleteDialogOpen(false);
+      
+      // Clear the history from storage
+      storage.clearHistory();
+      
+      // Clear any local state that might trigger updates
+      localStorage.removeItem('lastSelectedChatId');
+      
+      toast.success('All chat history has been deleted');
+    } catch (error) {
+      console.error('[Settings] Error deleting history:', error);
+      toast.error('Failed to delete chat history');
+    }
   };
 
   return (
@@ -111,13 +124,26 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold">Settings</h1>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-secondary/10 text-secondary-foreground mx-auto w-fit backdrop-blur border border-secondary/20">
-            <TabsTrigger value="models" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary-foreground">Models</TabsTrigger>
-            <TabsTrigger value="history" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary-foreground">History & Sync</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-10">
+          <TabsList className="bg-[#1C1C1C] mx-auto w-fit backdrop-blur border border-[#2A2A2A] rounded-md p-1.5 flex shadow-lg">
+            <TabsTrigger 
+              value="models" 
+              className="rounded-sm px-6 py-3 text-white/70 data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out border-none relative overflow-hidden"
+            >
+              <div className="relative z-10">Account</div>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="history" 
+              className="rounded-sm px-6 py-3 text-white/70 data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out border-none relative overflow-hidden"
+            >
+              <div className="relative z-10">Password</div>
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="models">
+          <TabsContent 
+            value="models"
+            className="transition-all duration-300 ease-out data-[state=inactive]:opacity-0 data-[state=active]:opacity-100"
+          >
             {isLoading ? (
               <div className="rounded-lg border border-secondary/20 bg-secondary/5 p-6 backdrop-blur">
                 <div className="flex justify-between items-center mb-6">
@@ -154,7 +180,10 @@ export default function SettingsPage() {
             )}
           </TabsContent>
 
-          <TabsContent value="history">
+          <TabsContent 
+            value="history"
+            className="transition-all duration-300 ease-out data-[state=inactive]:opacity-0 data-[state=active]:opacity-100"
+          >
             {isLoading ? (
               <div className="space-y-6">
                 {/* Cloud Sync Section Skeleton */}
