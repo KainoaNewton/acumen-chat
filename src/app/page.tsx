@@ -421,9 +421,20 @@ export default function Home() {
         response.text().then((text: string) => {
           try {
             const error = JSON.parse(text);
-            toast.error(`Error: ${error.error || 'Failed to generate response'}`);
+            const userMessage = error.error === 'context_length_exceeded' 
+              ? 'Message is too long for the AI model to process'
+              : 'Unable to generate AI response. Please try again';
+            toast.error(userMessage);
           } catch (e) {
-            toast.error(`Error (${response.status}): Failed to generate response`);
+            let userMessage = 'Unable to connect to AI service';
+            if (response.status === 401) {
+              userMessage = 'Invalid API key. Please check your settings';
+            } else if (response.status === 429) {
+              userMessage = 'Too many requests. Please wait a moment and try again';
+            } else if (response.status >= 500) {
+              userMessage = 'AI service is temporarily unavailable. Please try again later';
+            }
+            toast.error(userMessage);
           }
         });
       }
@@ -454,7 +465,13 @@ export default function Home() {
     },
     onError: (error: Error) => {
       console.error('[Home] Error:', error);
-      toast.error(`Error: ${error.message || 'Failed to communicate with AI'}`);
+      let userMessage = 'Failed to communicate with AI service';
+      if (error.message.includes('network')) {
+        userMessage = 'Network connection issue. Please check your internet connection';
+      } else if (error.message.includes('timeout')) {
+        userMessage = 'Request timed out. Please try again';
+      }
+      toast.error(userMessage);
     }
   };
   
@@ -700,7 +717,7 @@ export default function Home() {
     // If we don't have a valid model with API key, redirect to settings immediately
     if (!selectedModelWithApiKey?.apiKey) {
       console.log('[Home] No API key for model, redirecting to settings');
-      toast.error('API key missing. Please add an API key in settings.');
+      toast.error('Please add an API key in settings to continue chatting');
       router.push('/settings');
       return;
     }

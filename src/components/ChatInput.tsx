@@ -11,6 +11,7 @@ import { Send, Eye, FileText, Globe, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { providers } from '@/lib/providers';
 import React from 'react';
+import { useRouter } from 'next/navigation';
 
 interface ChatInputProps {
   models: Model[];
@@ -32,6 +33,7 @@ export function ChatInput({
   const [activeProviders, setActiveProviders] = useState<Record<string, boolean>>({});
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [allModels, setAllModels] = useState<Model[]>([]);
+  const router = useRouter();
 
   // Load active providers and API keys on mount
   useEffect(() => {
@@ -105,7 +107,7 @@ export function ChatInput({
     }
   }, [selectedModelId, selectedModel, allModels, selectedModelApiKey]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('[ChatInput] Submit triggered', { 
       selectedModelId, 
@@ -114,14 +116,13 @@ export function ChatInput({
     });
     
     if (!selectedModelId) {
-      console.log('[ChatInput] No model selected, showing error');
       toast.error('Please select a model first');
       return;
     }
     
     if (!selectedModelApiKey) {
-      console.log('[ChatInput] No API key for selected model provider:', selectedModel?.provider);
       toast.error(`Please add an API key for ${selectedModel?.provider} in settings`);
+      router.push('/settings');
       return;
     }
 
@@ -132,10 +133,10 @@ export function ChatInput({
         // Clear message input immediately to prevent double submissions
         setMessage('');
         // Then send the message
-        onSendMessage(messageToSend);
+        await onSendMessage(messageToSend);
       } catch (error) {
         console.error('[ChatInput] Error sending message:', error);
-        toast.error('Failed to send message');
+        toast.error('Unable to send message. Please try again');
       }
     }
   };
