@@ -76,6 +76,7 @@
 	--sidebar-ring: #666666;
 	--background: #000000;
 	--foreground: #ffffff;
+	--sidebar-width: 280px;
 }
 
 .dark {
