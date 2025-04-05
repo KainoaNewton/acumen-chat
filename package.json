@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "build-prod": "cross-env NODE_OPTIONS=--max_old_space_size=3072 next build --no-lint",
-    "vercel-build": "next build --no-lint --no-mangling",
+    "vercel-build": "NODE_OPTIONS=--max_old_space_size=3072 next build --no-lint",
     "start": "next start",
     "lint": "next lint"
   },
