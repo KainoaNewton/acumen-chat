@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense, useCallback } from 'react';
 import { useChat } from 'ai/react';
 import { v4 as uuidv4 } from 'uuid';
 import { Sidebar } from '@/components/Sidebar';
@@ -755,7 +755,7 @@ export default function Home() {
         setMessages([]);
       }
     }
-  }, [selectedChatId, chats, messages, useChatSetMessages]);  // Add useChatSetMessages to dependencies
+  }, [selectedChatId, chats]); // Remove messages and useChatSetMessages from dependencies
 
   // Update body params when model changes
   useEffect(() => {
@@ -768,13 +768,16 @@ export default function Home() {
     }
   }, [selectedModelWithApiKey, uiMessages, useChatSetMessages]); // Add useChatSetMessages to dependencies
 
-  const handleNewChat = () => {
-    // Reset UI messages when creating a new chat
-    setUIMessages([]);
-    setMessages([]);
-    setSelectedChatId('');
+  const handleNewChat = useCallback(() => {
+    // Batch state updates to prevent cascading effects
+    const updates = () => {
+      setUIMessages([]);
+      setMessages([]);
+      setSelectedChatId('');
+    };
+    updates();
     localStorage.removeItem('lastSelectedChatId');
-  };
+  }, []); // Empty dependency array since we don't use any external values
 
   const handleSelectChat = (chatId: string) => {
     // Update the ref immediately to prevent race conditions
@@ -917,7 +920,7 @@ export default function Home() {
       setUIMessages([]);
       useChatSetMessages([]);
     }
-  }, [chats, selectedChatId, messages, useChatSetMessages]); // Add useChatSetMessages to dependencies
+  }, [chats, selectedChatId, useChatSetMessages]); // Add useChatSetMessages to dependencies
 
   // Update handleSendMessage to be more resilient
   const handleSendMessage = async (message: string, targetMessageId?: string) => {
