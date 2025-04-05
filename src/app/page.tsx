@@ -167,10 +167,10 @@ const HeroSection = ({
               onSelectModel(model.id);
               setIsDropdownOpen(false);
             }}
-            className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-colors ${
+            className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors ${
               model.id === selectedModelId
-                ? 'bg-[#0D0D0D] border-[#1A2F7D] text-white'
-                : 'bg-black border-[#202020] hover:border-[#333333] hover:bg-[#0D0D0D] text-white'
+                ? 'bg-[#2D2F2F] text-white'
+                : 'bg-[#202222] hover:bg-[#22292A] text-white'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -179,21 +179,19 @@ const HeroSection = ({
               </span>
               <span className="font-medium">{model.name}</span>
             </div>
-            <div className="flex gap-1">
-              {model.provider === 'google' && (
-                <>
-                  <div className="rounded-md bg-black/50 p-1">
-                    <Eye className="w-3 h-3 text-white/70" />
-                  </div>
-                  <div className="rounded-md bg-black/50 p-1">
-                    <FileText className="w-3 h-3 text-white/70" />
-                  </div>
-                  <div className="rounded-md bg-black/50 p-1">
-                    <Globe className="w-3 h-3 text-white/70" />
-                  </div>
-                </>
-              )}
-            </div>
+            {model.provider === 'google' && (
+              <div className="flex gap-1">
+                <div className="rounded-md bg-black/50 p-1">
+                  <Eye className="w-3 h-3 text-white/70" />
+                </div>
+                <div className="rounded-md bg-black/50 p-1">
+                  <FileText className="w-3 h-3 text-white/70" />
+                </div>
+                <div className="rounded-md bg-black/50 p-1">
+                  <Globe className="w-3 h-3 text-white/70" />
+                </div>
+              </div>
+            )}
           </button>
         ))}
       </div>
@@ -202,72 +200,105 @@ const HeroSection = ({
 
   return (
     <div className="h-full flex flex-col items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-3xl">
-        <div className="rounded-[24px] bg-[#0d0d0d] border border-[#202020] overflow-hidden relative flex flex-col">
-          <div className="flex-grow px-4 py-3">
-            <textarea
-              value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                // Reset height to auto to get the correct scrollHeight
-                e.target.style.height = '28px';
-                // Only add extra height if content exceeds one line
-                const newHeight = Math.min(
-                  e.target.scrollHeight > 28 ? e.target.scrollHeight : 28,
-                  360
-                );
-                e.target.style.height = `${newHeight}px`;
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask anything..."
-              className="w-full bg-transparent text-white resize-none focus:outline-none text-lg overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:transparent [&::-webkit-scrollbar-thumb]:bg-[#333333] hover:[&::-webkit-scrollbar-thumb]:bg-[#444444]"
-              style={{
-                height: '28px', // Initial height for one line
-                minHeight: '28px',
-                maxHeight: '360px', // Max height for ~15 lines
-              }}
-            />
-          </div>
-          <div className="flex items-center justify-between px-4 py-4">
-            <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="h-10 px-4 gap-2 text-sm font-medium text-white hover:bg-[#141414] min-w-[180px] justify-start rounded-lg border border-[#202020] hover:border-[#333333] transition-colors"
+      <h1 className="text-4xl font-bold text-white mb-8">How can I help you?</h1>
+      <div className="w-full max-w-[900px]">
+        <div className="flex flex-col items-center mb-0 w-full">
+          <div className="flex flex-col rounded-[24px] bg-[#202222] border border-[#343636] shadow-[0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden w-[600px] min-w-fit max-w-full transition-all duration-200 mb-8 mx-auto">
+            <div className="flex px-4 py-1 relative">
+              <textarea
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  // Auto-resize logic
+                  e.target.style.height = 'auto';
+                  const newHeight = Math.min(
+                    Math.max(e.target.scrollHeight, 42), // Minimum height
+                    42 * 10 // Maximum height (10 lines)
+                  );
+                  e.target.style.height = `${newHeight}px`;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
+                placeholder="Ask anything..."
+                className="w-full min-h-[42px] max-h-[420px] bg-transparent text-white text-[15px] placeholder:text-[#8C9191] focus:outline-none resize-none overflow-y-auto py-3 pr-4 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:transparent [&::-webkit-scrollbar-thumb]:bg-[#4A5252]"
+                rows={1}
+              />
+            </div>
+
+            <div className="flex items-center justify-between px-4 pb-4 h-12">
+              <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-9 px-3 gap-2 text-[15px] font-medium text-white bg-[#202222] rounded-lg min-w-[140px] justify-start border border-[#343636] shrink-0"
+                  >
+                    {selectedModel ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-base" role="img" aria-label="provider icon">
+                          {getProviderIcon(selectedModel.provider)}
+                        </span>
+                        <span className="truncate font-medium">{selectedModel.name}</span>
+                      </div>
+                    ) : (
+                      'Select Model'
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="w-[300px] p-2 bg-[#202222] border border-[#343636] max-h-[400px] overflow-y-auto rounded-xl shadow-lg"
+                  align="start"
+                  side="top"
+                  sideOffset={8}
                 >
-                  {selectedModel ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg" role="img" aria-label="provider icon">
-                        {getProviderIcon(selectedModel.provider)}
-                      </span>
-                      <span className="truncate">{selectedModel.name}</span>
-                    </div>
-                  ) : (
-                    'Select Model'
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-[300px] p-2 bg-black border border-[#202020] max-h-[400px] overflow-y-auto rounded-xl shadow-lg"
-                align="start"
-                side="top"
-                sideOffset={8}
+                  {dropdownContent}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <button
+                type="submit"
+                className="h-9 w-9 rounded-full bg-white flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!input.trim()}
+                onClick={handleSubmit}
               >
-                {dropdownContent}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(-90deg)' }}>
+                  <path d="M5 12h14m0 0l-7-7m7 7l-7 7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Prompt Examples */}
+          <div className="flex gap-2 mt-2">
             <button
-              type="submit"
-              className="rounded-full w-10 h-10 bg-[#333333] flex items-center justify-center hover:bg-[#444444] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!input.trim()}
+              onClick={() => setInput("Summarize this for me:")}
+              className="flex items-center px-4 py-2 rounded-full bg-[#f97316]/10 hover:bg-[#f97316]/20 transition-colors text-[13px] text-[#f97316]"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 12h14m0 0l-7-7m7 7l-7 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              Summarize
+            </button>
+            <button
+              onClick={() => setInput("Help me write a")}
+              className="flex items-center px-4 py-2 rounded-full bg-[#a78bfa]/10 hover:bg-[#a78bfa]/20 transition-colors text-[13px] text-[#a78bfa]"
+            >
+              Help me write
+            </button>
+            <button
+              onClick={() => setInput("Make a plan to")}
+              className="flex items-center px-4 py-2 rounded-full bg-[#4ade80]/10 hover:bg-[#4ade80]/20 transition-colors text-[13px] text-[#4ade80]"
+            >
+              Make a plan
+            </button>
+            <button
+              onClick={() => setInput("Help me code a")}
+              className="flex items-center px-4 py-2 rounded-full bg-[#7dd3fc]/10 hover:bg-[#7dd3fc]/20 transition-colors text-[13px] text-[#7dd3fc]"
+            >
+              Code
             </button>
           </div>
         </div>
-      </form>
+      </div>
     </div>
   );
 };
