@@ -179,19 +179,6 @@ const HeroSection = ({
               </span>
               <span className="font-medium">{model.name}</span>
             </div>
-            {model.provider === 'google' && (
-              <div className="flex gap-1">
-                <div className="rounded-md bg-black/50 p-1">
-                  <Eye className="w-3 h-3 text-white/70" />
-                </div>
-                <div className="rounded-md bg-black/50 p-1">
-                  <FileText className="w-3 h-3 text-white/70" />
-                </div>
-                <div className="rounded-md bg-black/50 p-1">
-                  <Globe className="w-3 h-3 text-white/70" />
-                </div>
-              </div>
-            )}
           </button>
         ))}
       </div>
