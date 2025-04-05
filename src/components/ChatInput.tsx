@@ -256,26 +256,13 @@ export function ChatInput({
                 // Otherwise let the default happen (which is to add a new line)
               }}
               placeholder={isLoading ? "AI is thinking..." : "Ask anything..."}
-              className="w-full min-h-[42px] max-h-[420px] bg-transparent text-white text-[15px] placeholder:text-[#8C9191] focus:outline-none resize-none overflow-y-auto py-3 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:transparent [&::-webkit-scrollbar-thumb]:bg-[#4A5252]"
+              className="w-full min-h-[42px] max-h-[420px] bg-transparent text-white text-[15px] placeholder:text-[#8C9191] focus:outline-none resize-none overflow-y-auto py-3 pr-4 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:transparent [&::-webkit-scrollbar-thumb]:bg-[#4A5252]"
               disabled={isLoading}
               rows={1}
             />
-            <button
-              type="submit"
-              className="h-9 w-9 rounded-full bg-white flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed absolute top-3 right-4"
-              disabled={!message.trim() || isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin text-black" />
-              ) : (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(-90deg)' }}>
-                  <path d="M5 12h14m0 0l-7-7m7 7l-7 7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              )}
-            </button>
           </div>
 
-          <div className="flex items-center justify-between px-4 py-2 h-12">
+          <div className="flex items-center justify-between px-4 pb-4 h-12">
             <DropdownMenu open={isDropdownOpen} onOpenChange={handleDropdownOpenChange}>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -303,6 +290,19 @@ export function ChatInput({
                 {dropdownContent}
               </DropdownMenuContent>
             </DropdownMenu>
+            <button
+              type="submit"
+              className="h-9 w-9 rounded-full bg-white flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!message.trim() || isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin text-black" />
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(-90deg)' }}>
+                  <path d="M5 12h14m0 0l-7-7m7 7l-7 7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </button>
           </div>
         </div>
 
