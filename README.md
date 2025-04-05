@@ -4,11 +4,23 @@ A modern AI chat application built with Next.js, Tailwind CSS, and shadcn/ui. Th
 
 ## Features
 
-- 💬 Chat with a multitude of ai models using your own api keys and local models.
+- 💬 Chat with multiple AI models from OpenAI, Anthropic, Google, Mistral, and other providers
+- 🔐 Bring your own API keys with local storage
+- 🎛️ Support for custom models and OpenAI-compatible endpoints
 - 💾 Local storage for chat history and settings
-- 🎨 Modern UI with Tailwind CSS and shadcn/ui
 - ⚡ Real-time streaming responses
-- 📱 Responsive design
+- 🔄 Multiple response versions and regeneration capabilities
+- 🎨 Modern UI with Tailwind CSS and shadcn/ui
+- 📱 Responsive design for desktop and mobile
+
+## Planned Features
+
+- 📚 File upload and document analysis capabilities
+- 🧠 Knowledge management with personal knowledge base and RAG support
+- 🔄 Synchronization across devices with cloud storage
+- 📤 Export chats to PDF or markdown files
+- 🔗 Integration with external tools and MCP
+- 📋 Advanced prompt templates and management
 
 ## Getting Started
 
