@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense, useCallback } from 'react';
 import { useChat } from 'ai/react';
 import { v4 as uuidv4 } from 'uuid';
 import { Sidebar } from '@/components/Sidebar';
@@ -12,32 +12,34 @@ import { providers } from '@/lib/providers';
 import { toast } from 'sonner';
 import { MarkdownContent } from '@/components/MarkdownContent';
 import { Button } from '@/components/ui/button';
-import { Copy, RefreshCw, ArrowLeft, ArrowRight, Undo2, History, ChevronDown } from 'lucide-react';
+import { Copy, RefreshCw, ArrowLeft, ArrowRight, Undo2, History, ChevronDown, Eye, FileText, Globe } from 'lucide-react';
 import React from 'react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
 // Add this new component for the thinking animation
 const ThinkingAnimation = () => (
   <div className="flex items-center space-x-2 p-2">
     <div className="flex space-x-1.5">
-      <span className="h-2 w-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
-      <span className="h-2 w-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
-      <span className="h-2 w-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{ animationDelay: '600ms' }}></span>
+      <span className="h-2.5 w-2.5 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0ms', animationDuration: '1000ms' }}></span>
+      <span className="h-2.5 w-2.5 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '300ms', animationDuration: '1000ms' }}></span>
+      <span className="h-2.5 w-2.5 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '600ms', animationDuration: '1000ms' }}></span>
     </div>
-    <span className="text-gray-500 dark:text-gray-400 text-xs">AI is thinking</span>
+    <span className="text-gray-300 text-sm">AI is thinking</span>
   </div>
 );
 
 // Add a component for animated streaming content
 const StreamingContent = ({ content }: { content: string }) => {
   const contentLines = content.split('\n');
-  
+
   return (
     <div className="streaming-content">
       {contentLines.map((line, index) => (
-        <div 
-          key={index} 
-          className="streaming-line animate-fade-in" 
-          style={{ 
+        <div
+          key={index}
+          className="streaming-line animate-fade-in"
+          style={{
             animationDelay: `${Math.min(index * 30, 300)}ms`,
             minHeight: line.trim() === '' ? '0.6em' : 'auto'
           }}
@@ -45,6 +47,245 @@ const StreamingContent = ({ content }: { content: string }) => {
           {line.trim() === '' ? <br /> : <MarkdownContent content={line} />}
         </div>
       ))}
+    </div>
+  );
+};
+
+// Update the hero section with a large prompt box
+const HeroSection = ({
+  onSendMessage,
+  models,
+  selectedModelId,
+  onSelectModel
+}: {
+  onSendMessage: (message: string) => void;
+  models: Model[];
+  selectedModelId: string;
+  onSelectModel: (modelId: string) => void;
+}) => {
+  const [input, setInput] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [activeProviders, setActiveProviders] = useState<Record<string, boolean>>({});
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+
+  // Load active providers and API keys on mount
+  useEffect(() => {
+    const savedActiveProviders = localStorage.getItem('activeProviders');
+    const savedApiKeys = localStorage.getItem('apiKeys');
+
+    if (savedActiveProviders) {
+      setActiveProviders(JSON.parse(savedActiveProviders));
+    }
+    if (savedApiKeys) {
+      setApiKeys(JSON.parse(savedApiKeys));
+    }
+  }, []);
+
+  // Filter and sort models based on active providers
+  const availableModels = React.useMemo(() => {
+    // Use a Map to ensure unique models by ID
+    const modelMap = new Map<string, Model>();
+
+    // Add hardcoded models from providers first
+    providers.forEach(provider => {
+      if (activeProviders[provider.id]) {
+        provider.getModels(apiKeys[provider.id] || '').forEach(aiModel => {
+          modelMap.set(aiModel.id, {
+            id: aiModel.id,
+            name: aiModel.name,
+            provider: aiModel.provider,
+            description: aiModel.description || '',
+            isFavorite: false,
+            isCustom: false
+          } as Model);
+        });
+      }
+    });
+
+    // Add custom models, potentially overwriting provider models if they have the same ID
+    models.filter(model => activeProviders[model.provider]).forEach(model => {
+      modelMap.set(model.id, model);
+    });
+
+    // Convert Map back to array and sort
+    return Array.from(modelMap.values()).sort((a, b) => {
+      if (a.provider !== b.provider) {
+        return a.provider.localeCompare(b.provider);
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [models, activeProviders, apiKeys]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim()) {
+      onSendMessage(input);
+      setInput('');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
+  // Find selected model from available models
+  const selectedModel = availableModels.find((m) => m.id === selectedModelId);
+
+  // Get provider icon
+  const getProviderIcon = React.useCallback((provider: string | undefined) => {
+    switch (provider) {
+      case 'google':
+        return '✨';
+      case 'anthropic':
+        return '🧠';
+      case 'openai':
+        return '🤖';
+      case 'openai-compatible':
+        return '🔮';
+      case 'mistral':
+        return '🌪️';
+      case 'xai':
+        return '🤖';
+      case 'perplexity':
+        return '🔍';
+      default:
+        return '��';
+    }
+  }, []);
+
+  // Memoize the dropdown content
+  const dropdownContent = React.useMemo(() => {
+    return (
+      <div className="space-y-1">
+        {availableModels.map((model) => (
+          <button
+            key={model.id}
+            onClick={() => {
+              onSelectModel(model.id);
+              setIsDropdownOpen(false);
+            }}
+            className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors ${
+              model.id === selectedModelId
+                ? 'bg-[#2D2F2F] text-white'
+                : 'bg-[#202222] hover:bg-[#22292A] text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xl" role="img" aria-label="provider icon">
+                {getProviderIcon(model.provider)}
+              </span>
+              <span className="font-medium">{model.name}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  }, [availableModels, selectedModelId, onSelectModel, getProviderIcon]);
+
+  return (
+    <div className="h-full flex flex-col items-center justify-center p-4">
+      <h1 className="text-4xl font-bold text-white mb-8">How can I help you?</h1>
+      <div className="w-full max-w-[900px]">
+        <div className="flex flex-col items-center mb-0 w-full">
+          <div className="flex flex-col rounded-[24px] bg-[#202222] border border-[#343636] shadow-[0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden w-[600px] min-w-fit max-w-full transition-all duration-200 mb-8 mx-auto">
+            <div className="flex px-4 py-1 relative">
+              <textarea
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  // Auto-resize logic
+                  e.target.style.height = 'auto';
+                  const newHeight = Math.min(
+                    Math.max(e.target.scrollHeight, 42), // Minimum height
+                    42 * 10 // Maximum height (10 lines)
+                  );
+                  e.target.style.height = `${newHeight}px`;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
+                placeholder="Ask anything..."
+                className="w-full min-h-[42px] max-h-[420px] bg-transparent text-white text-[15px] placeholder:text-[#8C9191] focus:outline-none resize-none overflow-y-auto py-3 pr-4 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:transparent [&::-webkit-scrollbar-thumb]:bg-[#4A5252]"
+                rows={1}
+              />
+            </div>
+
+            <div className="flex items-center justify-between px-4 pb-4 h-12">
+              <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-9 px-3 gap-2 text-[15px] font-medium text-white bg-[#202222] rounded-lg min-w-[140px] justify-start border border-[#343636] shrink-0"
+                  >
+                    {selectedModel ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-base" role="img" aria-label="provider icon">
+                          {getProviderIcon(selectedModel.provider)}
+                        </span>
+                        <span className="truncate font-medium">{selectedModel.name}</span>
+                      </div>
+                    ) : (
+                      'Select Model'
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="w-[300px] p-2 bg-[#202222] border border-[#343636] max-h-[400px] overflow-y-auto rounded-xl shadow-lg"
+                  align="start"
+                  side="top"
+                  sideOffset={8}
+                >
+                  {dropdownContent}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <button
+                type="submit"
+                className="h-9 w-9 rounded-full bg-white flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!input.trim()}
+                onClick={handleSubmit}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(-90deg)' }}>
+                  <path d="M5 12h14m0 0l-7-7m7 7l-7 7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Prompt Examples */}
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => setInput("Summarize this for me:")}
+              className="flex items-center px-4 py-2 rounded-full bg-[#f97316]/10 hover:bg-[#f97316]/20 transition-colors text-[13px] text-[#f97316]"
+            >
+              Summarize
+            </button>
+            <button
+              onClick={() => setInput("Help me write a")}
+              className="flex items-center px-4 py-2 rounded-full bg-[#a78bfa]/10 hover:bg-[#a78bfa]/20 transition-colors text-[13px] text-[#a78bfa]"
+            >
+              Help me write
+            </button>
+            <button
+              onClick={() => setInput("Make a plan to")}
+              className="flex items-center px-4 py-2 rounded-full bg-[#4ade80]/10 hover:bg-[#4ade80]/20 transition-colors text-[13px] text-[#4ade80]"
+            >
+              Make a plan
+            </button>
+            <button
+              onClick={() => setInput("Help me code a")}
+              className="flex items-center px-4 py-2 rounded-full bg-[#7dd3fc]/10 hover:bg-[#7dd3fc]/20 transition-colors text-[13px] text-[#7dd3fc]"
+            >
+              Code
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -60,12 +301,12 @@ export default function Home() {
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
-  
+
   // Add a ref to track the last selected chat ID to prevent race conditions
   const lastSelectedChatRef = useRef<string>('');
-  
+
   // No need for activeModel state since it's causing circular dependencies
-  
+
   // Simple ref to store current model info without tracking dependencies
   const currentModelInfoRef = useRef({
     model: null as any,
@@ -81,35 +322,37 @@ export default function Home() {
   // Add this before the return statement
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   useEffect(() => {
     const savedChats = storage.getChats();
     const savedSettings = storage.getSettings();
     const savedApiKeys = storage.getApiKeys();
-    
+
     console.log('[Home] Loaded API keys from storage:', {
       keys: Object.keys(savedApiKeys),
       count: Object.keys(savedApiKeys).length,
       raw: JSON.stringify(savedApiKeys).substring(0, 100) + '...'
     });
-    
+
     if (savedSettings) {
       setSettings(savedSettings);
     }
-    
+
     // Get API keys from both sources to ensure consistency
     const directApiKeys = localStorage.getItem('apiKeys');
     console.log('[Home] Direct localStorage API keys:', {
       exists: !!directApiKeys,
       raw: directApiKeys ? directApiKeys.substring(0, 100) + '...' : 'null'
     });
-    
+
     // Use direct localStorage API keys if they exist, otherwise use storage module
     if (directApiKeys) {
       try {
         const parsedApiKeys = JSON.parse(directApiKeys);
         setApiKeys(parsedApiKeys);
         console.log('[Home] Using direct localStorage API keys:', Object.keys(parsedApiKeys));
-        
+
         // Make sure the API keys are not empty objects
         for (const provider in parsedApiKeys) {
           if (!parsedApiKeys[provider] || parsedApiKeys[provider].trim() === '') {
@@ -117,7 +360,7 @@ export default function Home() {
             delete parsedApiKeys[provider]; // Remove empty keys
           }
         }
-        
+
         // Ensure storage is synced
         storage.saveApiKeys(parsedApiKeys);
       } catch (error) {
@@ -141,7 +384,7 @@ export default function Home() {
       storage.saveApiKeys(testApiKeys);
       localStorage.setItem('apiKeys', JSON.stringify(testApiKeys));
     }
-    
+
     setChats(savedChats);
 
     // Clear messages initially to prevent any stale data
@@ -189,7 +432,7 @@ export default function Home() {
     // Check both the current state and localStorage for API keys
     const storedApiKeys = localStorage.getItem('apiKeys');
     const hasStoredKeys = storedApiKeys && Object.keys(JSON.parse(storedApiKeys)).length > 0;
-    
+
     if (Object.keys(apiKeys).length > 0) {
       console.log('[Home] apiKeys updated in state:', Object.keys(apiKeys));
       console.log('[Home] API keys content:', JSON.stringify(apiKeys).substring(0, 100) + '...');
@@ -212,21 +455,21 @@ export default function Home() {
   }, []); // Remove apiKeys from dependencies to prevent infinite loop
 
   const selectedChat = chats.find((chat) => chat.id === selectedChatId);
-  
+
   // This is the key issue - we need to ensure we look for the model in all available models
   // First determine which model ID we're using
   const currentModelId = selectedChat?.modelId || settings.defaultModelId;
-  
+
   // Look for this model in settings.models first
   let selectedModel = settings.models.find(m => m.id === currentModelId);
-  
+
   // If we can't find it there, we need to get it from the providers
   if (!selectedModel) {
-    console.log('[Home] Model not found in settings, checking providers', { 
+    console.log('[Home] Model not found in settings, checking providers', {
       currentModelId,
       availableApiKeys: Object.keys(apiKeys)
     });
-    
+
     // Load all provider models
     const providerModels: Model[] = [];
     for (const provider of Object.keys(apiKeys)) {
@@ -240,7 +483,7 @@ export default function Home() {
             console.log(`[Home] Provider ${provider} returned ${models.length} models`, {
               modelIds: models.map(m => m.id)
             });
-            
+
             // Convert AIModel to Model
             const modelsConverted = models.map(m => ({
               id: m.id,
@@ -252,7 +495,7 @@ export default function Home() {
               isCustom: false,
               apiKey: apiKeys[m.provider],
             } as Model));
-            
+
             providerModels.push(...modelsConverted);
           } catch (error) {
             console.error(`[Home] Error getting models for provider ${provider}:`, error);
@@ -262,12 +505,12 @@ export default function Home() {
         }
       }
     }
-    
+
     console.log('[Home] All provider models:', {
       count: providerModels.length,
       modelIds: providerModels.map(m => m.id)
     });
-    
+
     // Try to find our model in provider models
     selectedModel = providerModels.find(m => m.id === currentModelId);
     if (selectedModel) {
@@ -276,34 +519,34 @@ export default function Home() {
       console.log('[Home] Model not found in provider models:', currentModelId);
     }
   }
-  
+
   // Now construct the model with API key
   let selectedModelWithApiKey = selectedModel ? {
     ...selectedModel,
     apiKey: apiKeys[selectedModel.provider]
   } : null;
-  
+
   console.log('[Home] Initial selectedModelWithApiKey:', {
     exists: !!selectedModelWithApiKey,
     id: selectedModelWithApiKey?.id,
     provider: selectedModelWithApiKey?.provider,
     hasApiKey: !!selectedModelWithApiKey?.apiKey
   });
-  
+
   // If we don't have a model with API key but we have API keys available,
   // try to find a model that works with those keys
   if (!selectedModelWithApiKey || !selectedModelWithApiKey.apiKey) {
     // If we have API keys but no model selected, pick a model from a provider we have a key for
     if (Object.keys(apiKeys).length > 0) {
       console.log('[Home] Trying to find a suitable model for available API keys');
-      
+
       // Try to find a provider we have a key for
       const availableProvider = Object.keys(apiKeys).find(provider => !!apiKeys[provider]);
-      
+
       if (availableProvider) {
         console.log(`[Home] Found available provider: ${availableProvider}`);
         const providerObj = providers.find(p => p.id === availableProvider);
-        
+
         if (providerObj) {
           try {
             // Get the first model from this provider
@@ -319,16 +562,16 @@ export default function Home() {
                 isFavorite: false,
                 isCustom: false
               };
-              
+
               console.log('[Home] Using fallback model:', selectedModelWithApiKey.id);
-              
-              // Also update settings with this as the default model
-              const newSettings = {
-                ...settings,
-                defaultModelId: firstModel.id
-              };
-              setSettings(newSettings);
-              storage.saveSettings(newSettings);
+
+              // Remove the direct state update here
+              // const newSettings = {
+              //   ...settings,
+              //   defaultModelId: firstModel.id
+              // };
+              // setSettings(newSettings);
+              // storage.saveSettings(newSettings);
             }
           } catch (error) {
             console.error(`[Home] Error getting models for fallback provider:`, error);
@@ -337,7 +580,7 @@ export default function Home() {
       }
     }
   }
-  
+
   console.log('[Home] Final selectedModelWithApiKey:', {
     exists: !!selectedModelWithApiKey,
     id: selectedModelWithApiKey?.id,
@@ -355,7 +598,7 @@ export default function Home() {
         provider: selectedModelWithApiKey.provider,
         hasApiKey: true
       });
-      
+
       return {
         model: {
           id: selectedModelWithApiKey.id,
@@ -365,7 +608,7 @@ export default function Home() {
         apiKey: selectedModelWithApiKey.apiKey
       };
     }
-    
+
     // Fallback to the ref approach
     const modelInfo = currentModelInfoRef.current;
     if (modelInfo.model && modelInfo.apiKey) {
@@ -374,7 +617,7 @@ export default function Home() {
         provider: modelInfo.model.provider,
         hasApiKey: !!modelInfo.apiKey
       });
-      
+
       return {
         model: {
           id: modelInfo.model.id,
@@ -384,7 +627,7 @@ export default function Home() {
         apiKey: modelInfo.apiKey
       };
     }
-    
+
     console.warn('[Home] getChatModelInfo: No model info available!');
     return { model: null, apiKey: null };
   };
@@ -410,18 +653,18 @@ export default function Home() {
       apiKey: selectedModelWithApiKey?.apiKey || null
     },
     onResponse: (response: Response) => {
-      console.log('[Home] Response received:', { 
-        status: response.status, 
+      console.log('[Home] Response received:', {
+        status: response.status,
         ok: response.ok,
         contentType: response.headers.get('content-type')
       });
-      
+
       // Show error toast if response is not OK
       if (!response.ok) {
         response.text().then((text: string) => {
           try {
             const error = JSON.parse(text);
-            const userMessage = error.error === 'context_length_exceeded' 
+            const userMessage = error.error === 'context_length_exceeded'
               ? 'Message is too long for the AI model to process'
               : 'Unable to generate AI response. Please try again';
             toast.error(userMessage);
@@ -449,7 +692,7 @@ export default function Home() {
           role: message.role as 'assistant',
           createdAt: new Date(),
         };
-        
+
         const updatedChats = chats.map((chat) =>
           chat.id === selectedChatId
             ? {
@@ -474,7 +717,7 @@ export default function Home() {
       toast.error(userMessage);
     }
   };
-  
+
   // Log the parameters we're using for useChat to help debug
   console.log('[Home] useChat parameters:', {
     id: chatParams.id,
@@ -483,33 +726,33 @@ export default function Home() {
     provider: chatParams.body.model?.provider,
     hasApiKey: !!chatParams.body.apiKey
   });
-  
+
   const { input, handleInputChange, handleSubmit, isLoading, setMessages: useChatSetMessages } = useChat(chatParams);
-  
+
   // Store previous messages to handle model switching
   const [uiMessages, setUIMessages] = useState<any[]>([]);
-  
+
   // Update UI messages whenever messages change
   useEffect(() => {
     if (messages.length > 0) {
       setUIMessages(messages);
     }
   }, [messages]);
-  
+
   // Update chat messages when selectedChat changes
   useEffect(() => {
     // Update ref to match current selection
     lastSelectedChatRef.current = selectedChatId;
-    
+
     if (selectedChatId !== '') {
       const selectedChat = chats.find((chat) => chat.id === selectedChatId);
       if (selectedChat) {
         console.log('[Home] Loading messages for selected chat:', selectedChatId);
-        
+
         // Check if messages already match the selected chat's messages
-        const messagesMatch = messages.length === selectedChat.messages.length && 
+        const messagesMatch = messages.length === selectedChat.messages.length &&
                               (messages.length === 0 || messages[0].id === selectedChat.messages[0]?.id);
-        
+
         if (!messagesMatch) {
           // First clear existing messages
           useChatSetMessages([]);
@@ -530,64 +773,58 @@ export default function Home() {
         setMessages([]);
       }
     }
-  }, [selectedChatId, chats]);  // No need to add useChatSetMessages to dependencies
+  }, [selectedChatId, chats]); // Remove messages and useChatSetMessages from dependencies
 
   // Update body params when model changes
   useEffect(() => {
     console.log('[Home] Selected model changed, updating chat parameters');
-    
+
     // When model changes, ensure we keep the current UI messages
     if (uiMessages.length > 0) {
       console.log('[Home] Preserving current UI messages after model change');
       useChatSetMessages(uiMessages);
     }
-  }, [selectedModelWithApiKey, uiMessages]); // Remove useChatSetMessages from dependencies
+  }, [selectedModelWithApiKey, uiMessages, useChatSetMessages]); // Add useChatSetMessages to dependencies
 
-  const handleNewChat = () => {
-    // Reset UI messages when creating a new chat
-    setUIMessages([]);
-    
-    const newChat: Chat = {
-      id: uuidv4(),
-      title: 'New Chat',
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      modelId: settings.defaultModelId,
+  const handleNewChat = useCallback(() => {
+    // Batch state updates to prevent cascading effects
+    const updates = () => {
+      setUIMessages([]);
+      setMessages([]);
+      setSelectedChatId('');
     };
-    const updatedChats = [newChat, ...chats];
-    setChats(updatedChats);
-    storage.saveChats(updatedChats);
-    setSelectedChatId(newChat.id);
-    // Save selected chat ID to localStorage for persistence
-    localStorage.setItem('lastSelectedChatId', newChat.id);
-  };
+    updates();
+    localStorage.removeItem('lastSelectedChatId');
+  }, []); // Empty dependency array since we don't use any external values
 
   const handleSelectChat = (chatId: string) => {
     // Update the ref immediately to prevent race conditions
     lastSelectedChatRef.current = chatId;
-    
-    // First, clear the current messages
+
+    // First, clear all message states
     setMessages([]);
-    
+    setUIMessages([]);
+    useChatSetMessages([]);
+
     // Then set the selected chat ID
     setSelectedChatId(chatId);
-    
+
     // Save the selected chat ID to localStorage for persistence
     localStorage.setItem('lastSelectedChatId', chatId);
-    
+
     // Find the selected chat and update messages state
     const selectedChat = chats.find((chat) => chat.id === chatId);
     if (selectedChat) {
-      // When selecting a chat, reset UI messages to avoid stale state
-      setUIMessages(selectedChat.messages || []);
       // Set messages with a slight delay to ensure proper clearing first
       setTimeout(() => {
         // Only update if the selected chat hasn't changed during the timeout
         if (lastSelectedChatRef.current === chatId) {
-          setMessages(selectedChat.messages || []);
+          const chatMessages = selectedChat.messages || [];
+          setMessages(chatMessages);
+          setUIMessages(chatMessages);
+          useChatSetMessages(chatMessages);
         }
-      }, 10);
+      }, 50);
     }
   };
 
@@ -596,19 +833,19 @@ export default function Home() {
     const updatedChats = chats.filter((chat) => chat.id !== chatId);
     setChats(updatedChats);
     storage.saveChats(updatedChats);
-    
+
     // If we're deleting the currently selected chat
     if (selectedChatId === chatId) {
       // Clear messages from UI immediately
       useChatSetMessages([]);
       setUIMessages([]);
-      
+
       // If there are other chats, select the first one
       if (updatedChats.length > 0) {
         const newSelectedId = updatedChats[0].id;
         setSelectedChatId(newSelectedId);
         localStorage.setItem('lastSelectedChatId', newSelectedId);
-        
+
         // Load the messages for the newly selected chat
         const newSelectedChat = updatedChats.find(chat => chat.id === newSelectedId);
         if (newSelectedChat) {
@@ -646,62 +883,66 @@ export default function Home() {
     setEditingChatId(null);
   };
 
-  // Add this useEffect to ensure chat state is always synchronized
+  // Update useEffect for chat synchronization
   useEffect(() => {
     // Only run this effect if we have a selectedChatId
     if (selectedChatId === '') {
-      // Clear messages when no chat is selected
       setMessages([]);
+      setUIMessages([]);
+      useChatSetMessages([]);
       return;
     }
 
     // If the selected chat exists in our chats list, make sure messages are synced
     const selectedChat = chats.find(chat => chat.id === selectedChatId);
     if (selectedChat) {
-      // If there's a mismatch between displayed messages and the selected chat's messages,
-      // update the displayed messages to match the selected chat
-      if (messages.length === 0 || 
-          (messages.length > 0 && selectedChat.messages.length > 0 && messages[0].id !== selectedChat.messages[0]?.id)) {
-        // Compare message arrays to avoid unnecessary updates 
-        const messagesAreDifferent = JSON.stringify(messages.map(m => m.id)) !== 
-                                     JSON.stringify(selectedChat.messages.map(m => m.id));
-        
-        if (messagesAreDifferent) {
-          console.log('[Home] Syncing messages with selected chat');
-          setMessages(selectedChat.messages || []);
-        }
+      const chatMessages = selectedChat.messages || [];
+
+      // Compare message arrays to avoid unnecessary updates
+      const messagesAreDifferent = JSON.stringify(messages.map(m => m.id)) !==
+                                   JSON.stringify(chatMessages.map(m => m.id));
+
+      if (messagesAreDifferent) {
+        console.log('[Home] Syncing messages with selected chat');
+        setMessages(chatMessages);
+        setUIMessages(chatMessages);
+        useChatSetMessages(chatMessages);
       }
       return;
     }
 
     // If we get here, the selected chat doesn't exist in our chats list
-    // This should only happen if the chat was explicitly deleted
     console.log('[Home] Selected chat no longer exists, resetting state');
-    
+
     // If there are other chats, select the first one
     if (chats.length > 0) {
       const newSelectedId = chats[0].id;
       console.log('[Home] Selecting first available chat:', newSelectedId);
       setSelectedChatId(newSelectedId);
       localStorage.setItem('lastSelectedChatId', newSelectedId);
-      
+
       // Load the messages for the newly selected chat
       const newSelectedChat = chats.find(chat => chat.id === newSelectedId);
       if (newSelectedChat?.messages) {
-        setMessages(newSelectedChat.messages);
+        const newMessages = newSelectedChat.messages;
+        setMessages(newMessages);
+        setUIMessages(newMessages);
+        useChatSetMessages(newMessages);
       }
     } else {
-      // If no chats remain, set to empty string and clear localStorage
+      // If no chats remain, clear everything
       console.log('[Home] No chats available, clearing selection');
       setSelectedChatId('');
       localStorage.removeItem('lastSelectedChatId');
       setMessages([]);
+      setUIMessages([]);
+      useChatSetMessages([]);
     }
-  }, [chats, selectedChatId]); // Remove messages from dependencies to prevent infinite loop
+  }, [chats, selectedChatId, useChatSetMessages]); // Add useChatSetMessages to dependencies
 
   // Update handleSendMessage to be more resilient
   const handleSendMessage = async (message: string, targetMessageId?: string) => {
-    console.log('[Home] handleSendMessage called', { 
+    console.log('[Home] handleSendMessage called', {
       messageLength: message.length,
       hasSelectedModelWithApiKey: !!selectedModelWithApiKey,
       modelId: selectedModelWithApiKey?.id,
@@ -721,7 +962,7 @@ export default function Home() {
       router.push('/settings');
       return;
     }
-    
+
     try {
       // Create the user message
       const userMessage = {
@@ -730,19 +971,19 @@ export default function Home() {
         role: 'user' as const,
         createdAt: new Date(),
       };
-      
+
       let newChatId = selectedChatId;
       let currentMessages: Message[] = [];
       let isNewChat = false;
       let newChat: Chat | null = null;
-      
+
       // Create a new chat if needed
       if (selectedChatId === '') {
         console.log('[Home] No chat selected, creating new chat');
         const chatId = uuidv4();
         newChatId = chatId;
         isNewChat = true;
-        
+
         // Create new chat with the message
         newChat = {
           id: chatId,
@@ -752,7 +993,7 @@ export default function Home() {
           updatedAt: new Date(),
           modelId: selectedModelWithApiKey.id,
         };
-        
+
         // Add the new chat to the list and update state immediately
         setChats(prevChats => {
           const updatedChats = [newChat!, ...prevChats];
@@ -760,7 +1001,7 @@ export default function Home() {
           storage.saveChats(updatedChats);
           return updatedChats;
         });
-        
+
         // Set the selected chat ID immediately
         setSelectedChatId(chatId);
         localStorage.setItem('lastSelectedChatId', chatId);
@@ -768,15 +1009,15 @@ export default function Home() {
       } else {
         // Add to the existing chat
         console.log('[Home] Adding user message to existing chat', { chatId: newChatId });
-        
+
         // Get the existing chat's messages and add the new user message
         const existingChat = chats.find(chat => chat.id === newChatId);
         if (!existingChat) {
           throw new Error(`Chat with ID ${newChatId} not found`);
         }
-        
+
         currentMessages = [...existingChat.messages, userMessage];
-        
+
         // Update the chat with the new message
         setChats(prevChats => {
           const updatedChats = prevChats.map((chat) =>
@@ -788,7 +1029,7 @@ export default function Home() {
                 }
               : chat
           );
-          
+
           // Save to storage
           storage.saveChats(updatedChats);
           return updatedChats;
@@ -797,7 +1038,7 @@ export default function Home() {
 
       // Update the UI with the user message
       setMessages(currentMessages);
-      
+
       // Add a loading message that will be updated with actual content
       const aiMessageId = uuidv4();
       const loadingMessage = {
@@ -807,10 +1048,28 @@ export default function Home() {
         createdAt: new Date(),
         isLoading: true,
       };
-      
+
       // Show the loading message in the UI
       const messagesWithLoadingIndicator = [...currentMessages, loadingMessage];
       setMessages(messagesWithLoadingIndicator);
+
+      // Update the chat in storage with the loading state
+      setChats(prevChats => {
+        const updatedChats = prevChats.map((chat) =>
+          chat.id === newChatId
+            ? {
+                ...chat,
+                messages: messagesWithLoadingIndicator,
+                updatedAt: new Date(),
+              }
+            : chat
+        );
+        storage.saveChats(updatedChats);
+        return updatedChats;
+      });
+
+      // Force a delay to ensure the thinking animation is visible
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // If this is a new chat, update it again to ensure it exists
       if (isNewChat && newChat) {
@@ -819,7 +1078,7 @@ export default function Home() {
           setChats(prevChats => {
             // Try to find the chat in the current state
             const chatExists = prevChats.some(chat => chat.id === newChatId);
-            
+
             if (!chatExists) {
               // If chat doesn't exist, add it
               const updatedNewChat = {
@@ -831,7 +1090,7 @@ export default function Home() {
               return updatedChats;
             } else {
               // If chat exists, update it
-              const updatedChats = prevChats.map(chat => 
+              const updatedChats = prevChats.map(chat =>
                 chat.id === newChatId ? {
                   ...chat,
                   messages: messagesWithLoadingIndicator
@@ -842,17 +1101,17 @@ export default function Home() {
             }
           });
         };
-        
+
         // Update the chat immediately
         updateChatWithLoading();
-        
+
         // And also after a short delay to ensure it's updated
         setTimeout(updateChatWithLoading, 100);
       }
-      
+
       // Send message to AI using the API directly
       console.log('[Home] Sending message to API');
-      
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -872,54 +1131,73 @@ export default function Home() {
           apiKey: selectedModelWithApiKey.apiKey,
         }),
       });
-      
+
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
-      
+
       const reader = response.body?.getReader();
       if (!reader) {
         throw new Error('No response body');
       }
-      
+
       let aiMessageContent = '';
-      
+
       // Stream the response
+      let hasStartedStreaming = false;
+      const thinkingStartTime = Date.now();
+      const minThinkingTime = 2000; // Minimum time to show thinking animation (2 seconds)
+
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) break;
-        
+
         // Decode the chunk
         const text = new TextDecoder().decode(value);
         aiMessageContent += text;
-        
+
+        // For the first chunk, make sure thinking animation has been visible for at least minThinkingTime
+        if (!hasStartedStreaming) {
+          hasStartedStreaming = true;
+          const timeElapsed = Date.now() - thinkingStartTime;
+          if (timeElapsed < minThinkingTime) {
+            await new Promise(resolve => setTimeout(resolve, minThinkingTime - timeElapsed));
+          }
+        }
+
+        // Keep showing thinking animation until we have enough content
+        const shouldShowThinking = !hasStartedStreaming || aiMessageContent.length < 10;
+
         // Update the UI with the streaming content
-        const updatedMessages = messagesWithLoadingIndicator.map(m => 
-          m.id === aiMessageId 
-            ? { ...m, content: aiMessageContent, isLoading: true } 
+        const updatedMessages = messagesWithLoadingIndicator.map(m =>
+          m.id === aiMessageId
+            ? {
+                ...m,
+                content: shouldShowThinking ? '' : aiMessageContent,
+                isLoading: true
+              }
             : m
         );
+
         setMessages(updatedMessages);
 
-        // If this is a new chat, make sure to keep updating the chat in storage during streaming
-        if (isNewChat || true) { // Always update during streaming
-          setChats(prevChats => {
-            const updatedChats = prevChats.map((chat) =>
-              chat.id === newChatId
-                ? {
-                    ...chat,
-                    messages: updatedMessages,
-                    updatedAt: new Date(),
-                  }
-                : chat
-            );
-            storage.saveChats(updatedChats);
-            return updatedChats;
-          });
-        }
+        // Update the chat in storage with the current state
+        setChats(prevChats => {
+          const updatedChats = prevChats.map((chat) =>
+            chat.id === newChatId
+              ? {
+                  ...chat,
+                  messages: updatedMessages,
+                  updatedAt: new Date(),
+                }
+              : chat
+          );
+          storage.saveChats(updatedChats);
+          return updatedChats;
+        });
       }
-      
+
       // After streaming is complete, save the final message
       const finalAiMessage = {
         id: aiMessageId,
@@ -934,11 +1212,11 @@ export default function Home() {
         }],
         currentVersionIndex: 0
       };
-      
+
       // Update UI with the complete message
       const finalMessages = [...currentMessages, finalAiMessage];
       setMessages(finalMessages);
-      
+
       // Update the chat in storage
       setChats(prevChats => {
         const updatedChats = prevChats.map((chat) =>
@@ -953,7 +1231,7 @@ export default function Home() {
         storage.saveChats(updatedChats);
         return updatedChats;
       });
-      
+
     } catch (error) {
       console.error('[Home] Error in handleSendMessage:', error);
       toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -961,19 +1239,12 @@ export default function Home() {
   };
 
   const generateChatTitle = (message: string): string => {
-    // If message is short enough, use it directly
-    if (message.length <= 30) {
-      return message;
-    }
-    
-    // Otherwise extract first sentence or truncate
+    // Extract first sentence if it exists
     const firstSentence = message.split(/[.!?]/)[0];
-    if (firstSentence.length <= 30) {
-      return firstSentence;
-    }
-    
-    // Truncate with ellipsis if still too long
-    return message.substring(0, 27) + '...';
+
+    // Use first sentence if it's different from the full message,
+    // otherwise use the full message
+    return firstSentence !== message ? firstSentence : message;
   };
 
   // Add a navigation listener to detect when we're returning from settings page
@@ -1018,19 +1289,19 @@ export default function Home() {
   const navigateToSettings = () => {
     // Log when we start navigation
     console.log('[Home] Starting navigation to settings at', new Date().toISOString());
-    
+
     // Important: Prefetch the route in advance
     router.prefetch('/settings');
-    
+
     // Set flag to reload API keys when we return
     reloadKeys.current = true;
-    
+
     // Remove the toast notification
     hasNavigatedToSettings.current = true;
-    
+
     // Navigate immediately - don't wait for any more operations
     router.push('/settings');
-    
+
     // Log that navigation has been triggered
     console.log('[Home] Navigation push method called');
   };
@@ -1078,6 +1349,11 @@ export default function Home() {
 
     setMessages([...messages, newMessage]);
 
+    // Start tracking time for thinking animation
+    const thinkingStartTime = Date.now();
+    const minThinkingTime = 2000; // Minimum time to show thinking animation (2 seconds)
+    let hasStartedStreaming = false;
+
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -1086,13 +1362,29 @@ export default function Home() {
         const chunk = decoder.decode(value);
         accumulatedContent += chunk;
 
-        const updatedMessages = messages.map((m, i) => 
-          i === messages.length - 1 ? { ...m, content: accumulatedContent } : m
+        // For the first chunk, make sure thinking animation has been visible for at least minThinkingTime
+        if (!hasStartedStreaming) {
+          hasStartedStreaming = true;
+          const timeElapsed = Date.now() - thinkingStartTime;
+          if (timeElapsed < minThinkingTime) {
+            await new Promise(resolve => setTimeout(resolve, minThinkingTime - timeElapsed));
+          }
+        }
+
+        // Keep the thinking animation visible for initial content
+        const shouldShowThinking = !hasStartedStreaming || accumulatedContent.length < 10;
+
+        const updatedMessages = messages.map((m, i) =>
+          i === messages.length - 1 ? {
+            ...m,
+            content: shouldShowThinking ? '' : accumulatedContent,
+            isLoading: true
+          } : m
         );
         setMessages(updatedMessages);
       }
 
-      const finalMessages = messages.map((m, i) => 
+      const finalMessages = messages.map((m, i) =>
         i === messages.length - 1 ? { ...m, isLoading: false } : m
       );
       setMessages(finalMessages);
@@ -1146,9 +1438,13 @@ export default function Home() {
 
     // Update the message in the UI immediately to show it's being rewritten
     const updatedMessages = messages.map(m =>
-      m.id === message.id ? { ...updatedMessage, isLoading: true } : m
+      m.id === message.id ? { ...updatedMessage, isLoading: true, content: '' } : m
     );
     setMessages(updatedMessages);
+
+    // Start tracking time for thinking animation
+    const thinkingStartTime = Date.now();
+    const minThinkingTime = 2000; // Minimum time to show thinking animation (2 seconds)
 
     try {
       const response = await fetch('/api/chat', {
@@ -1176,19 +1472,32 @@ export default function Home() {
       }
 
       let accumulatedContent = '';
-      
+      let hasStartedStreaming = false;
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const chunk = new TextDecoder().decode(value);
         accumulatedContent += chunk;
+
+        // For the first chunk, make sure thinking animation has been visible for at least minThinkingTime
+        if (!hasStartedStreaming) {
+          hasStartedStreaming = true;
+          const timeElapsed = Date.now() - thinkingStartTime;
+          if (timeElapsed < minThinkingTime) {
+            await new Promise(resolve => setTimeout(resolve, minThinkingTime - timeElapsed));
+          }
+        }
+
+        // Keep the thinking animation visible for initial content
+        const shouldShowThinking = !hasStartedStreaming || accumulatedContent.length < 10;
 
         // Update the message content as it streams in
         const streamingMessages = messages.map(m =>
           m.id === message.id ? {
             ...updatedMessage,
-            content: accumulatedContent,
+            content: shouldShowThinking ? '' : accumulatedContent,
             isLoading: true
           } : m
         );
@@ -1230,7 +1539,7 @@ export default function Home() {
     } catch (error) {
       console.error('Error in handleRewrite:', error);
       toast.error('Failed to rewrite message');
-      
+
       // Reset the message to its original state
       const resetMessages = messages.map(m =>
         m.id === message.id ? { ...message, isLoading: false } : m
@@ -1282,210 +1591,283 @@ export default function Home() {
     };
   }, [openDropdownId]);
 
+  // Add a new useEffect to handle setting the default model when necessary
+  useEffect(() => {
+    // If we have a selectedModelWithApiKey but it's not the default in settings
+    if (selectedModelWithApiKey && 
+        selectedModelWithApiKey.id !== settings.defaultModelId &&
+        !selectedChatId) { // Only update if no chat is selected
+      console.log('[Home] Updating default model in settings:', selectedModelWithApiKey.id);
+      const newSettings = {
+        ...settings,
+        defaultModelId: selectedModelWithApiKey.id
+      };
+      setSettings(newSettings);
+      storage.saveSettings(newSettings);
+    }
+  }, [apiKeys, settings.defaultModelId, selectedModelWithApiKey?.id, selectedChatId]);
+
+  // Add this memoized value to avoid re-calculating models on every render
+  const availableModelsFromProviders = React.useMemo(() => {
+    if (settings.models.length > 0) {
+      return settings.models;
+    }
+    
+    // Only calculate this if we don't have models in settings
+    return providers.flatMap(p => {
+      try {
+        return p.getModels('').map(m => ({
+          id: m.id,
+          name: m.name,
+          provider: m.provider,
+          description: m.description || '',
+          isFavorite: false,
+          isCustom: false
+        } as Model));
+      } catch (e) {
+        console.error(`Error getting models for provider ${p.id}:`, e);
+        return [];
+      }
+    });
+  }, [settings.models]);
+
   return (
-    <div className="flex h-screen bg-black text-foreground">
-      <Sidebar
-        chats={chats}
-        selectedChatId={selectedChatId}
-        onNewChat={handleNewChat}
-        onSelectChat={handleSelectChat}
-        onOpenSettings={navigateToSettings}
-        onDeleteChat={handleDeleteChat}
-        onEditChat={handleEditChat}
-        editingChatId={editingChatId}
-        editingTitle={editingTitle}
-        onEditingTitleChange={setEditingTitle}
-        onSaveTitle={handleSaveTitle}
-      />
-      <main className="flex-1 flex flex-col bg-black">
-        <div className="flex-1 overflow-y-auto p-4">
-          {selectedChatId === '' ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-4">
-              <h2 className="text-2xl font-semibold mb-2">No chat selected</h2>
-              <p className="text-muted-foreground mb-4">Create a new chat or select an existing one to get started.</p>
-              <button 
-                onClick={handleNewChat} 
-                className="px-4 py-2 bg-[#202020] border border-[#333333] hover:border-[#444444] text-white rounded-md transition"
-              >
-                New Chat
-              </button>
-            </div>
-          ) : (
-            messages.map((message, index) => (
-              <div key={message.id} className="flex flex-col space-y-2 mb-4">
-                <div className={`flex items-start ${message.role === 'user' ? 'justify-end' : ''} group`}>
-                  <div className={`${message.role === 'user' ? 'ml-12' : 'mr-12'} relative group pb-10 px-2`}>
-                    {message.role === 'assistant' && message.isLoading && message.content === '' ? (
-                      <div className="inline-block p-3 rounded-lg bg-gray-50/50 dark:bg-[#0D0D0D] border border-gray-100 dark:border-[#121212]">
-                        <ThinkingAnimation />
-                      </div>
-                    ) : (
-                      <div className={`prose dark:prose-invert inline-block px-4 py-3 rounded-lg transition-all duration-200 ${
-                        message.role === 'user' 
-                          ? 'bg-blue-50/50 dark:bg-[#0C1020] border border-blue-100 dark:border-[#0E1B48] group-hover:border-blue-200 dark:group-hover:border-[#1A2F7D]' 
-                          : 'bg-gray-50/50 dark:bg-[#0D0D0D] border border-gray-100 dark:border-[#121212] group-hover:border-gray-300 dark:group-hover:border-[#202020]'
-                      }`}>
-                        <div className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                          {message.role === 'assistant' && message.isLoading ? (
-                            <StreamingContent content={message.content} />
-                          ) : (
-                            <MarkdownContent content={message.content} />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {message.role === 'assistant' && !message.isLoading && (
-                      <div className={`absolute ${hasVersions(message) && message.versions.length > 1 ? 'left-2' : 'left-3'} mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
-                        <div className="inline-flex items-center space-x-2">
-                          {hasVersions(message) && message.versions.length > 1 && (
-                            <div className="relative">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenDropdownId(openDropdownId === message.id ? null : message.id);
-                                }}
-                                className="flex items-center space-x-1 px-2 py-1 bg-gray-50/50 dark:bg-[#0D0D0D] rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 border border-gray-100 dark:border-[#121212] group-hover:border-gray-300 dark:group-hover:border-[#202020]"
-                              >
-                                <History className="h-4 w-4" />
-                                <span className="text-sm">
-                                  {(message.currentVersionIndex || 0) + 1}/{message.versions?.length}
-                                </span>
-                                <ChevronDown className="h-3 w-3 ml-0.5" />
-                              </button>
-                              {openDropdownId === message.id && (
-                                <div 
-                                  className="absolute left-0 mt-1 w-40 bg-gray-50/50 dark:bg-[#0D0D0D] rounded-lg shadow-lg border border-gray-100 dark:border-[#121212] z-10 backdrop-blur-xl"
-                                >
-                                  <div className="py-1">
-                                    {message.versions.map((version, index) => (
-                                      <button
-                                        key={version.id}
-                                        onClick={() => {
-                                          handleVersionSelect(message, index);
-                                          setOpenDropdownId(null);
-                                        }}
-                                        className={`w-full text-left px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors ${
-                                          index === message.currentVersionIndex 
-                                            ? 'bg-gray-100/50 dark:bg-gray-800/50' 
-                                            : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/50'
-                                        }`}
-                                      >
-                                        Version {index + 1}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          <button
-                            onClick={() => {
-                              const button = document.getElementById(`copy-button-${message.id}`);
-                              if (button) {
-                                const icon = button.querySelector('svg');
-                                if (icon) {
-                                  icon.innerHTML = '<path d="M20 6L9 17l-5-5"/>';
-                                  icon.setAttribute('stroke-width', '3');
-                                }
-                                setTimeout(() => {
-                                  if (icon) {
-                                    icon.innerHTML = '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"></path>';
-                                    icon.setAttribute('stroke-width', '2');
-                                  }
-                                }, 500);
-                              }
-                              navigator.clipboard.writeText(message.content);
-                              toast.success('Copied to clipboard');
-                            }}
-                            id={`copy-button-${message.id}`}
-                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleRewrite(message, messages[index - 1])}
-                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                          </button>
-                          <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                            Rewrite with {selectedModel?.name}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-        <ChatInput
-          models={settings.models}
-          selectedModelId={selectedChat?.modelId || settings.defaultModelId}
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading}
-          onSelectModel={(modelId) => {
-            console.log('[Home] Model selected:', modelId);
-            
-            // Batch all state updates together
-            React.startTransition(() => {
-              if (selectedChatId === '') {
-                // Create new chat
-                const chat: Chat = {
-                  id: uuidv4(),
-                  title: 'New Chat',
-                  messages: [],
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                  modelId: modelId,
-                };
-                
-                // Update all states in one go
-                const updatedChats = [chat, ...chats];
-                const newSettings = {
-                  ...settings,
-                  defaultModelId: modelId,
-                };
-                
-                // Persist changes
-                storage.saveChats(updatedChats);
-                storage.saveSettings(newSettings);
-                localStorage.setItem('lastSelectedChatId', chat.id);
-                
-                // Update states
-                setChats(updatedChats);
-                setSelectedChatId(chat.id);
-                setSettings(newSettings);
-                setUIMessages([]);
-                setMessages([]);
-              } else {
-                // Update existing chat
-                const currentUIMessages = uiMessages.length > messages.length ? uiMessages : messages;
-                const updatedChats = chats.map((chat) =>
-                  chat.id === selectedChatId
-                    ? { ...chat, modelId }
-                    : chat
-                );
-                const newSettings = {
-                  ...settings,
-                  defaultModelId: modelId,
-                };
-                
-                // Persist changes
-                storage.saveChats(updatedChats);
-                storage.saveSettings(newSettings);
-                
-                // Update states
-                setChats(updatedChats);
-                setSettings(newSettings);
-                setMessages(currentUIMessages);
-              }
-            });
-          }}
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}>
+      <div className="flex h-screen overflow-hidden bg-[#202222] text-white">
+        <Sidebar
+          chats={chats}
+          selectedChatId={selectedChatId}
+          onNewChat={handleNewChat}
+          onSelectChat={handleSelectChat}
+          onOpenSettings={navigateToSettings}
+          onDeleteChat={handleDeleteChat}
+          onEditChat={handleEditChat}
+          editingChatId={editingChatId}
+          editingTitle={editingTitle}
+          onEditingTitleChange={setEditingTitle}
+          onSaveTitle={handleSaveTitle}
+          isCollapsed={isCollapsed}
+          onCollapsedChange={setIsCollapsed}
         />
-      </main>
-    </div>
+
+        {/* Collapsed sidebar overlay for empty state */}
+        {isCollapsed && (selectedChatId === '' || messages.length === 0) && (
+          <div className="absolute inset-0 bg-[#191A1A] z-20 flex items-center justify-center">
+            <div className="w-full max-w-3xl px-4">
+              <HeroSection
+                onSendMessage={(message) => handleSendMessage(message)}
+                models={availableModelsFromProviders}
+                selectedModelId={selectedChat?.modelId || settings.defaultModelId}
+                onSelectModel={(modelId) => {
+                  if (selectedChatId) {
+                    const updatedChats = chats.map((chat) =>
+                      chat.id === selectedChatId
+                        ? { ...chat, modelId }
+                        : chat
+                    );
+                    setChats(updatedChats);
+                    storage.saveChats(updatedChats);
+                  } else {
+                    const newSettings = {
+                      ...settings,
+                      defaultModelId: modelId
+                    };
+                    setSettings(newSettings);
+                    storage.saveSettings(newSettings);
+                  }
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className={cn(
+          "flex-1 flex justify-center items-center bg-[#202222] transition-all duration-300",
+          isCollapsed
+            ? "ml-0"
+            : "ml-0 pt-3"
+        )}>
+          <main className={cn(
+            "w-full h-full flex flex-col bg-[#191A1A] relative overflow-clip",
+            isCollapsed
+              ? ""
+              : "rounded-tl-lg border-l border-t border-[#2C2C2D]"
+          )}>
+            {/* Only show regular content when we're not showing the overlay */}
+            {!isCollapsed || (selectedChatId !== '' && messages.length > 0) ? (
+              <div className={cn(
+                "flex-1 overflow-y-auto overscroll-none",
+                isCollapsed
+                  ? "p-4 pb-28"
+                  : "p-4 pt-6 pb-28"
+              )}>
+                {selectedChatId === '' || messages.length === 0 ? (
+                  <div className="h-full flex flex-col">
+                    <HeroSection
+                      onSendMessage={(message) => handleSendMessage(message)}
+                      models={availableModelsFromProviders}
+                      selectedModelId={selectedChat?.modelId || settings.defaultModelId}
+                      onSelectModel={(modelId) => {
+                        if (selectedChatId) {
+                          const updatedChats = chats.map((chat) =>
+                            chat.id === selectedChatId
+                              ? { ...chat, modelId }
+                              : chat
+                          );
+                          setChats(updatedChats);
+                          storage.saveChats(updatedChats);
+                        } else {
+                          const newSettings = {
+                            ...settings,
+                            defaultModelId: modelId
+                          };
+                          setSettings(newSettings);
+                          storage.saveSettings(newSettings);
+                        }
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    {messages.map((message, index) => (
+                      <div key={message.id} className="flex flex-col space-y-2 mb-4">
+                        <div className={`flex items-start ${message.role === 'user' ? 'justify-end' : ''} group`}>
+                          <div className={`${message.role === 'user' ? 'ml-12' : 'mr-12'} relative group pb-10 px-2`}>
+                            {message.role === 'assistant' && message.isLoading && message.content === '' ? (
+                              <div className="inline-block p-3 rounded-lg bg-[#0D0D0D] border border-[#121212]">
+                                <ThinkingAnimation />
+                              </div>
+                            ) : (
+                              <div className={`prose prose-invert inline-block px-4 py-3 rounded-lg transition-all duration-200 ${
+                                message.role === 'user'
+                                  ? 'bg-[#0C1020] border border-[#0E1B48] group-hover:border-[#1A2F7D]'
+                                  : 'bg-[#0D0D0D] border border-[#121212] group-hover:border-[#202020]'
+                              }`}>
+                                <div className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                                  {message.role === 'assistant' && message.isLoading ? (
+                                    <StreamingContent content={message.content} />
+                                  ) : (
+                                    <MarkdownContent content={message.content} />
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            {message.role === 'assistant' && !message.isLoading && (
+                              <div className={`absolute ${hasVersions(message) && message.versions.length > 1 ? 'left-2' : 'left-3'} mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+                                <div className="inline-flex items-center space-x-2">
+                                  {hasVersions(message) && message.versions.length > 1 && (
+                                    <div className="relative">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenDropdownId(openDropdownId === message.id ? null : message.id);
+                                        }}
+                                        className="flex items-center space-x-1 px-2 py-1 bg-[#0D0D0D] rounded text-gray-400 hover:text-gray-200 border border-[#121212] group-hover:border-[#202020]"
+                                      >
+                                        <History className="h-4 w-4" />
+                                        <span className="text-sm">
+                                          {(message.currentVersionIndex || 0) + 1}/{message.versions?.length}
+                                        </span>
+                                        <ChevronDown className="h-3 w-3 ml-0.5" />
+                                      </button>
+                                      {openDropdownId === message.id && (
+                                        <div
+                                          className="absolute left-0 mt-1 w-40 bg-[#0D0D0D] rounded-lg shadow-lg border border-[#121212] z-10 backdrop-blur-xl"
+                                        >
+                                          <div className="py-1">
+                                            {message.versions.map((version, index) => (
+                                              <button
+                                                key={version.id}
+                                                onClick={() => {
+                                                  handleVersionSelect(message, index);
+                                                  setOpenDropdownId(null);
+                                                }}
+                                                className={`w-full text-left px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors ${
+                                                  index === message.currentVersionIndex
+                                                    ? 'bg-gray-800/50'
+                                                    : 'hover:bg-gray-800/50'
+                                                }`}
+                                              >
+                                                Version {index + 1}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      const button = document.getElementById(`copy-button-${message.id}`);
+                                      if (button) {
+                                        const icon = button.querySelector('svg');
+                                        if (icon) {
+                                          icon.innerHTML = '<path d="M20 6L9 17l-5-5"/>';
+                                          icon.setAttribute('stroke-width', '3');
+                                        }
+                                        setTimeout(() => {
+                                          if (icon) {
+                                            icon.innerHTML = '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"></path>';
+                                            icon.setAttribute('stroke-width', '2');
+                                          }
+                                        }, 500);
+                                      }
+                                      navigator.clipboard.writeText(message.content);
+                                      toast.success('Copied to clipboard');
+                                    }}
+                                    id={`copy-button-${message.id}`}
+                                    className="text-gray-400 hover:text-gray-200"
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleRewrite(message, messages[index - 1])}
+                                    className="text-gray-400 hover:text-gray-200"
+                                  >
+                                    <RefreshCw className="h-4 w-4" />
+                                  </button>
+                                  <span className="text-sm text-gray-400 whitespace-nowrap">
+                                    Rewrite with {selectedModel?.name}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            ) : null}
+            <ChatInput
+              models={settings.models}
+              selectedModelId={selectedChat?.modelId || settings.defaultModelId}
+              onSendMessage={handleSendMessage}
+              onSelectModel={(modelId) => {
+                if (selectedChatId) {
+                  const updatedChats = chats.map((chat) =>
+                    chat.id === selectedChatId
+                      ? { ...chat, modelId }
+                      : chat
+                  );
+                  setChats(updatedChats);
+                  storage.saveChats(updatedChats);
+                } else {
+                  const newSettings = {
+                    ...settings,
+                    defaultModelId: modelId
+                  };
+                  setSettings(newSettings);
+                  storage.saveSettings(newSettings);
+                }
+              }}
+              isLoading={isLoading}
+              isLargePromptVisible={selectedChatId === '' || messages.length === 0}
+            />
+          </main>
+        </div>
+      </div>
+    </Suspense>
   );
 }

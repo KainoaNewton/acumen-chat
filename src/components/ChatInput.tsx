@@ -19,6 +19,7 @@ interface ChatInputProps {
   onSendMessage: (message: string) => void;
   onSelectModel: (modelId: string) => void;
   isLoading?: boolean;
+  isLargePromptVisible?: boolean;
 }
 
 export function ChatInput({
@@ -27,6 +28,7 @@ export function ChatInput({
   onSendMessage,
   onSelectModel,
   isLoading = false,
+  isLargePromptVisible = false,
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -34,12 +36,25 @@ export function ChatInput({
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [allModels, setAllModels] = useState<Model[]>([]);
   const router = useRouter();
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // Initialize textarea height
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      const newHeight = Math.min(
+        Math.max(textareaRef.current.scrollHeight, 42),
+        42 * 10
+      );
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
+  }, [message]);
 
   // Load active providers and API keys on mount
   useEffect(() => {
     const savedActiveProviders = localStorage.getItem('activeProviders');
     const savedApiKeys = localStorage.getItem('apiKeys');
-    
+
     if (savedActiveProviders) {
       setActiveProviders(JSON.parse(savedActiveProviders));
     }
@@ -50,14 +65,14 @@ export function ChatInput({
 
   // Update allModels when dependencies change
   useEffect(() => {
-    console.log('[ChatInput] Updating models with', { 
+    console.log('[ChatInput] Updating models with', {
       modelCount: models.length,
       activeProviderCount: Object.keys(activeProviders).filter(key => activeProviders[key]).length,
       apiKeysCount: Object.keys(apiKeys).length
     });
-    
+
     const activeCustomModels = models.filter(model => activeProviders[model.provider]);
-    const hardcodedModels = providers.flatMap(provider => 
+    const hardcodedModels = providers.flatMap(provider =>
       activeProviders[provider.id] ? provider.getModels(apiKeys[provider.id] || '').map(aiModel => ({
         id: aiModel.id,
         name: aiModel.name,
@@ -69,7 +84,7 @@ export function ChatInput({
         apiKey: apiKeys[provider.id],
       } as Model)) : []
     );
-    
+
     const allModelsCombined = [...hardcodedModels, ...activeCustomModels];
     console.log('[ChatInput] Models loaded:', allModelsCombined.length);
     setAllModels(allModelsCombined);
@@ -77,10 +92,10 @@ export function ChatInput({
 
   // Find selected model from all available models
   const selectedModel = allModels.find((m) => m.id === selectedModelId);
-  
+
   // Directly check if we have an API key for the selected model
   const selectedModelApiKey = selectedModel ? apiKeys[selectedModel.provider] : undefined;
-  
+
   // Sort models by provider and name - using memoization to prevent recalculation on each render
   const sortedModels = React.useMemo(() => {
     return [...allModels].sort((a, b) => {
@@ -90,11 +105,11 @@ export function ChatInput({
       return a.name.localeCompare(b.name);
     });
   }, [allModels]);
-  
+
   useEffect(() => {
     if (selectedModelId && !selectedModel) {
-      console.log('[ChatInput] Warning: Selected model not found in available models', { 
-        selectedModelId, 
+      console.log('[ChatInput] Warning: Selected model not found in available models', {
+        selectedModelId,
         modelsCount: allModels.length,
         modelIds: allModels.map(m => m.id)
       });
@@ -109,17 +124,17 @@ export function ChatInput({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[ChatInput] Submit triggered', { 
-      selectedModelId, 
+    console.log('[ChatInput] Submit triggered', {
+      selectedModelId,
       messageLength: message.length,
       hasApiKey: !!selectedModelApiKey
     });
-    
+
     if (!selectedModelId) {
       toast.error('Please select a model first');
       return;
     }
-    
+
     if (!selectedModelApiKey) {
       toast.error(`Please add an API key for ${selectedModel?.provider} in settings`);
       router.push('/settings');
@@ -141,7 +156,7 @@ export function ChatInput({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       console.log('[ChatInput] Enter key pressed (without shift)');
       e.preventDefault();
@@ -190,10 +205,10 @@ export function ChatInput({
           <button
             key={model.id}
             onClick={() => handleModelSelect(model.id)}
-            className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-colors ${
+            className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors ${
               model.id === selectedModelId
-                ? 'bg-[#0D0D0D] border-[#1A2F7D] text-white'
-                : 'bg-black border-[#202020] hover:border-[#333333] hover:bg-[#0D0D0D] text-white'
+                ? 'bg-[#2D2F2F] text-white'
+                : 'bg-[#202222] hover:bg-[#22292A] text-white'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -202,115 +217,101 @@ export function ChatInput({
               </span>
               <span className="font-medium">{model.name}</span>
             </div>
-            <div className="flex gap-1">
-              {model.provider === 'google' && (
-                <>
-                  <div className="rounded-md bg-black/50 p-1">
-                    <Eye className="w-3 h-3 text-white/70" />
-                  </div>
-                  <div className="rounded-md bg-black/50 p-1">
-                    <FileText className="w-3 h-3 text-white/70" />
-                  </div>
-                  <div className="rounded-md bg-black/50 p-1">
-                    <Globe className="w-3 h-3 text-white/70" />
-                  </div>
-                </>
-              )}
-            </div>
           </button>
         ))}
       </div>
     );
   }, [sortedModels, selectedModelId, handleModelSelect, getProviderIcon]);
 
-  // Memoize the dropdown trigger button to prevent unnecessary re-renders
-  const dropdownTrigger = React.useMemo(() => {
-    return (
-      <Button 
-        variant="ghost" 
-        className="h-12 px-4 gap-2 text-sm font-medium text-white hover:bg-[#141414] min-w-[180px] justify-start rounded-l-xl border-r border-[#202020]"
-        onClick={(e) => {
-          e.preventDefault();
-          setIsDropdownOpen(prev => !prev);
-        }}
-        disabled={isLoading}
-      >
-        {selectedModel ? (
-          <div className="flex items-center gap-2">
-            <span className="text-lg" role="img" aria-label="provider icon">
-              {getProviderIcon(selectedModel.provider)}
-            </span>
-            <span className="truncate">{selectedModel.name}</span>
-          </div>
-        ) : (
-          'Select Model'
-        )}
-      </Button>
-    );
-  }, [selectedModel, isLoading, getProviderIcon]);
+  if (isLargePromptVisible) {
+    return null;
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="p-4">
-      <div className="relative flex items-center gap-2 rounded-xl border border-[#202020] bg-black backdrop-blur shadow-sm">
-        <DropdownMenu open={isDropdownOpen} onOpenChange={handleDropdownOpenChange}>
-          <DropdownMenuTrigger asChild>
-            {dropdownTrigger}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent 
-            className="w-[300px] p-2 bg-black border border-[#202020] max-h-[400px] overflow-y-auto rounded-xl shadow-lg"
-            align="start"
-            side="top"
-            sideOffset={8}
-          >
-            {dropdownContent}
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <form
+      onSubmit={handleSubmit}
+      className="absolute bottom-0 inset-x-0 mx-auto z-10 w-full max-w-[900px] px-4 transition-all duration-300 ease-in-out"
+    >
+      <div className="flex flex-col items-center mb-0 w-full">
+        <div className="flex flex-col rounded-t-[20px] bg-[#202222] border-t border-x border-[#343636] shadow-[0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden w-[600px] min-w-fit max-w-full transition-all duration-200 mb-0 mx-auto">
+          <div className="flex px-4 py-1 relative">
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                // Auto-resize logic
+                e.target.style.height = 'auto';
+                const newHeight = Math.min(
+                  Math.max(e.target.scrollHeight, 42), // Minimum height
+                  42 * 10 // Maximum height (10 lines)
+                );
+                e.target.style.height = `${newHeight}px`;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+                // Otherwise let the default happen (which is to add a new line)
+              }}
+              placeholder={isLoading ? "AI is thinking..." : "Ask anything..."}
+              className="w-full min-h-[42px] max-h-[420px] bg-transparent text-white text-[15px] placeholder:text-[#8C9191] focus:outline-none resize-none overflow-y-auto py-3 pr-4 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:transparent [&::-webkit-scrollbar-thumb]:bg-[#4A5252]"
+              disabled={isLoading}
+              rows={1}
+            />
+          </div>
 
-        <div className="relative flex-1">
-          <Textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder={isLoading ? "AI is thinking..." : "Type your message..."}
-            className="flex-1 min-h-[48px] max-h-[400px] bg-transparent border-0 focus:ring-0 resize-none py-3.5 px-4 text-sm text-white placeholder:text-gray-500 pr-10"
-            onKeyDown={handleKeyDown}
-            disabled={isLoading}
-          />
-          
-          {message.trim() && !isLoading && (
-            <Button 
-              type="button" 
-              variant="ghost" 
-              size="icon" 
-              className="absolute right-3 top-3 h-6 w-6 text-gray-500 hover:text-white"
-              onClick={() => setMessage('')}
+          <div className="flex items-center justify-between px-4 pb-4 h-12">
+            <DropdownMenu open={isDropdownOpen} onOpenChange={handleDropdownOpenChange}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-9 px-3 gap-2 text-[15px] font-medium text-white bg-[#202222] rounded-lg min-w-[140px] justify-start border border-[#343636] shrink-0"
+                >
+                  {selectedModel ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-base" role="img" aria-label="provider icon">
+                        {getProviderIcon(selectedModel.provider)}
+                      </span>
+                      <span className="truncate font-medium">{selectedModel.name}</span>
+                    </div>
+                  ) : (
+                    'Select Model'
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-[300px] p-2 bg-[#202222] border border-[#343636] max-h-[400px] overflow-y-auto rounded-xl shadow-lg"
+                align="start"
+                side="top"
+                sideOffset={8}
+              >
+                {dropdownContent}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button
+              type="submit"
+              className="h-9 w-9 rounded-full bg-white flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!message.trim() || isLoading}
             >
-              <X className="h-3 w-3" />
-            </Button>
-          )}
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin text-black" />
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(-90deg)' }}>
+                  <path d="M5 12h14m0 0l-7-7m7 7l-7 7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
 
-        {isLoading ? (
-          <div className="h-12 w-12 flex items-center justify-center text-gray-500">
-            <Loader2 className="w-4 h-4 animate-spin" />
+        {isLoading && (
+          <div className="mt-2 text-xs text-gray-500 text-center animate-pulse w-full">
+            AI is generating a response...
           </div>
-        ) : (
-          <Button 
-            type="submit" 
-            variant="ghost" 
-            size="icon" 
-            className="h-12 w-12 text-gray-500 hover:text-white hover:bg-[#1A2F7D]/20 transition-colors"
-            disabled={isLoading || !message.trim()}
-          >
-            <Send className="w-4 h-4" />
-          </Button>
         )}
       </div>
-      
-      {isLoading && (
-        <div className="mt-2 text-xs text-gray-500 text-center animate-pulse">
-          AI is generating a response...
-        </div>
-      )}
     </form>
   );
-} 
+}

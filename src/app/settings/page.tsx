@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import Image from 'next/image';
 
 export default function SettingsPage() {
   // Use a ref to safely manage our timer logic without triggering warnings
@@ -130,13 +131,13 @@ export default function SettingsPage() {
               value="models" 
               className="rounded-sm px-6 py-3 text-white/70 data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out border-none relative overflow-hidden"
             >
-              <div className="relative z-10">Account</div>
+              <div className="relative z-10">Providers & Models</div>
             </TabsTrigger>
             <TabsTrigger 
               value="history" 
               className="rounded-sm px-6 py-3 text-white/70 data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out border-none relative overflow-hidden"
             >
-              <div className="relative z-10">Password</div>
+              <div className="relative z-10">Sync & History</div>
             </TabsTrigger>
           </TabsList>
 
@@ -253,7 +254,20 @@ export default function SettingsPage() {
                         <h3 className="font-medium text-foreground">GitHub Sync</h3>
                         <p className="text-sm text-muted-foreground">Sync your chat history with GitHub</p>
                       </div>
-                      <Button className="bg-primary/10 text-primary-foreground hover:bg-primary/20 border border-primary/20">
+                      <Button 
+                        className="bg-[#2b3137] text-white hover:bg-[#24292e] border border-[#444d56] transition-all flex items-center gap-2"
+                        onClick={() => toast.info('Cloud sync with GitHub coming soon...', {
+                          position: 'top-center',
+                          duration: 3000,
+                        })}
+                      >
+                        <Image 
+                          src="/Github-dark.svg" 
+                          alt="GitHub logo" 
+                          width={20} 
+                          height={20} 
+                          className="invert"
+                        />
                         Connect GitHub
                       </Button>
                     </div>
@@ -262,7 +276,19 @@ export default function SettingsPage() {
                         <h3 className="font-medium text-foreground">Google Drive Sync</h3>
                         <p className="text-sm text-muted-foreground">Sync your chat history with Google Drive</p>
                       </div>
-                      <Button className="bg-primary/10 text-primary-foreground hover:bg-primary/20 border border-primary/20">
+                      <Button 
+                        className="bg-[#1a73e8] text-white hover:bg-[#1765cc] border border-[#4285f4]/30 transition-all flex items-center gap-2"
+                        onClick={() => toast.info('Cloud sync with Google Drive coming soon...', {
+                          position: 'top-center',
+                          duration: 3000,
+                        })}
+                      >
+                        <Image 
+                          src="/Google Drive.svg" 
+                          alt="Google Drive logo" 
+                          width={20} 
+                          height={20} 
+                        />
                         Connect Google Drive
                       </Button>
                     </div>
@@ -278,7 +304,18 @@ export default function SettingsPage() {
                         <h3 className="font-medium text-foreground">Export History</h3>
                         <p className="text-sm text-muted-foreground">Download your chat history as a JSON file</p>
                       </div>
-                      <Button className="bg-primary/10 text-primary-foreground hover:bg-primary/20 border border-primary/20">
+                      <Button 
+                        className="bg-emerald-600/90 text-white hover:bg-emerald-700 border border-emerald-500/30 transition-all flex items-center gap-2"
+                        onClick={() => toast.info('Export functionality coming soon...', {
+                          position: 'top-center',
+                          duration: 3000,
+                        })}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                          <polyline points="7 10 12 15 17 10"></polyline>
+                          <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
                         Export
                       </Button>
                     </div>
@@ -287,7 +324,18 @@ export default function SettingsPage() {
                         <h3 className="font-medium text-foreground">Import History</h3>
                         <p className="text-sm text-muted-foreground">Import chat history from a JSON file</p>
                       </div>
-                      <Button className="bg-primary/10 text-primary-foreground hover:bg-primary/20 border border-primary/20">
+                      <Button 
+                        className="bg-blue-600/90 text-white hover:bg-blue-700 border border-blue-500/30 transition-all flex items-center gap-2"
+                        onClick={() => toast.info('Import functionality coming soon...', {
+                          position: 'top-center',
+                          duration: 3000,
+                        })}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                          <polyline points="17 8 12 3 7 8"></polyline>
+                          <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
                         Import
                       </Button>
                     </div>
