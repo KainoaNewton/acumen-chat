@@ -54,7 +54,7 @@ export function ChatInput({
   useEffect(() => {
     const savedActiveProviders = localStorage.getItem('activeProviders');
     const savedApiKeys = localStorage.getItem('apiKeys');
-    
+
     if (savedActiveProviders) {
       setActiveProviders(JSON.parse(savedActiveProviders));
     }
@@ -65,14 +65,14 @@ export function ChatInput({
 
   // Update allModels when dependencies change
   useEffect(() => {
-    console.log('[ChatInput] Updating models with', { 
+    console.log('[ChatInput] Updating models with', {
       modelCount: models.length,
       activeProviderCount: Object.keys(activeProviders).filter(key => activeProviders[key]).length,
       apiKeysCount: Object.keys(apiKeys).length
     });
-    
+
     const activeCustomModels = models.filter(model => activeProviders[model.provider]);
-    const hardcodedModels = providers.flatMap(provider => 
+    const hardcodedModels = providers.flatMap(provider =>
       activeProviders[provider.id] ? provider.getModels(apiKeys[provider.id] || '').map(aiModel => ({
         id: aiModel.id,
         name: aiModel.name,
@@ -84,7 +84,7 @@ export function ChatInput({
         apiKey: apiKeys[provider.id],
       } as Model)) : []
     );
-    
+
     const allModelsCombined = [...hardcodedModels, ...activeCustomModels];
     console.log('[ChatInput] Models loaded:', allModelsCombined.length);
     setAllModels(allModelsCombined);
@@ -92,10 +92,10 @@ export function ChatInput({
 
   // Find selected model from all available models
   const selectedModel = allModels.find((m) => m.id === selectedModelId);
-  
+
   // Directly check if we have an API key for the selected model
   const selectedModelApiKey = selectedModel ? apiKeys[selectedModel.provider] : undefined;
-  
+
   // Sort models by provider and name - using memoization to prevent recalculation on each render
   const sortedModels = React.useMemo(() => {
     return [...allModels].sort((a, b) => {
@@ -105,11 +105,11 @@ export function ChatInput({
       return a.name.localeCompare(b.name);
     });
   }, [allModels]);
-  
+
   useEffect(() => {
     if (selectedModelId && !selectedModel) {
-      console.log('[ChatInput] Warning: Selected model not found in available models', { 
-        selectedModelId, 
+      console.log('[ChatInput] Warning: Selected model not found in available models', {
+        selectedModelId,
         modelsCount: allModels.length,
         modelIds: allModels.map(m => m.id)
       });
@@ -124,17 +124,17 @@ export function ChatInput({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[ChatInput] Submit triggered', { 
-      selectedModelId, 
+    console.log('[ChatInput] Submit triggered', {
+      selectedModelId,
       messageLength: message.length,
       hasApiKey: !!selectedModelApiKey
     });
-    
+
     if (!selectedModelId) {
       toast.error('Please select a model first');
       return;
     }
-    
+
     if (!selectedModelApiKey) {
       toast.error(`Please add an API key for ${selectedModel?.provider} in settings`);
       router.push('/settings');
@@ -228,12 +228,12 @@ export function ChatInput({
   }
 
   return (
-    <form 
-      onSubmit={handleSubmit} 
-      className="fixed bottom-0 left-[calc(50%+var(--sidebar-width)/2)] -translate-x-1/2 z-10 w-full max-w-[900px] px-4"
+    <form
+      onSubmit={handleSubmit}
+      className="absolute bottom-0 inset-x-0 mx-auto z-10 w-full max-w-[900px] px-4 transition-all duration-300 ease-in-out"
     >
-      <div className="flex flex-col items-center">
-        <div className="flex flex-col rounded-t-[20px] bg-[#202222] border-t border-x border-[#343636] shadow-[0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden w-[600px] min-w-fit max-w-full transition-all duration-200">
+      <div className="flex flex-col items-center mb-0 w-full">
+        <div className="flex flex-col rounded-t-[20px] bg-[#202222] border-t border-x border-[#343636] shadow-[0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden w-[600px] min-w-fit max-w-full transition-all duration-200 mb-0 mx-auto">
           <div className="flex px-4 py-1 relative">
             <textarea
               ref={textareaRef}
@@ -260,7 +260,7 @@ export function ChatInput({
               disabled={isLoading}
               rows={1}
             />
-            <button 
+            <button
               type="submit"
               className="h-9 w-9 rounded-full bg-white flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed absolute top-3 right-4"
               disabled={!message.trim() || isLoading}
@@ -268,18 +268,18 @@ export function ChatInput({
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin text-black" />
               ) : (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(-90deg)' }}>
                   <path d="M5 12h14m0 0l-7-7m7 7l-7 7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               )}
             </button>
           </div>
-          
+
           <div className="flex items-center justify-between px-4 py-2 h-12">
             <DropdownMenu open={isDropdownOpen} onOpenChange={handleDropdownOpenChange}>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   className="h-9 px-3 gap-2 text-[15px] font-medium text-white bg-[#202222] rounded-lg min-w-[140px] justify-start border border-[#343636] shrink-0"
                 >
                   {selectedModel ? (
@@ -294,7 +294,7 @@ export function ChatInput({
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent 
+              <DropdownMenuContent
                 className="w-[300px] p-2 bg-[#202222] border border-[#343636] max-h-[400px] overflow-y-auto rounded-xl shadow-lg"
                 align="start"
                 side="top"
@@ -305,7 +305,7 @@ export function ChatInput({
             </DropdownMenu>
           </div>
         </div>
-        
+
         {isLoading && (
           <div className="mt-2 text-xs text-gray-500 text-center animate-pulse w-full">
             AI is generating a response...
@@ -314,4 +314,4 @@ export function ChatInput({
       </div>
     </form>
   );
-} 
+}
