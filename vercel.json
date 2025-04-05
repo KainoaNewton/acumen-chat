@@ -1,6 +1,5 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install --legacy-peer-deps",
-  "buildCommand": null,
-  "outputDirectory": null
+  "buildCommand": "NODE_OPTIONS=--max_old_space_size=3072 next build --no-lint --no-error-on-prerender-issue"
 } 

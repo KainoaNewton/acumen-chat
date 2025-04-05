@@ -2,21 +2,39 @@
 
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
+import { Suspense } from 'react';
+import React from 'react';
+
+// Component that safely uses useSearchParams inside Suspense
+function SearchParamsTracker({ onParamsChange }: { onParamsChange: (params: URLSearchParams) => void }) {
+  const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    onParamsChange(searchParams);
+  }, [searchParams, onParamsChange]);
+  
+  return null;
+}
 
 export function NavigationEventsTracker() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [currentSearchParams, setCurrentSearchParams] = React.useState<URLSearchParams | null>(null);
 
   useEffect(() => {
-    const url = `${pathname}${searchParams ? `?${searchParams}` : ''}`;
+    if (currentSearchParams === null) return;
+    
+    const url = `${pathname}${currentSearchParams ? `?${currentSearchParams}` : ''}`;
     console.log(`[Router] Navigation changed to ${url} at ${new Date().toISOString()}`);
     
     // Track navigation complete
     if (pathname === '/settings') {
       console.log('[Router] Settings page navigation completed');
     }
-  }, [pathname, searchParams]);
+  }, [pathname, currentSearchParams]);
 
-  // This component doesn't render anything
-  return null;
+  return (
+    <Suspense fallback={null}>
+      <SearchParamsTracker onParamsChange={setCurrentSearchParams} />
+    </Suspense>
+  );
 } 
