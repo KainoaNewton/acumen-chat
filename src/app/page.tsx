@@ -1631,6 +1631,23 @@ export default function Home() {
     });
   }, [settings.models]);
 
+  // Redirect to /new if there are no chats
+  useEffect(() => {
+    const savedChats = storage.getChats();
+    if (savedChats.length === 0) {
+      router.push('/new');
+    }
+  }, [router]);
+
+  // Keep URL in sync with selected chat
+  useEffect(() => {
+    if (selectedChatId) {
+      window.history.pushState({}, '', `/chat/${selectedChatId}`);
+    } else {
+      window.history.pushState({}, '', '/new');
+    }
+  }, [selectedChatId]);
+
   return (
     <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}>
       <div className="flex h-screen overflow-hidden bg-[#202222] text-white">
