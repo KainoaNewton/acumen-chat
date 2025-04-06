@@ -1644,7 +1644,7 @@ export default function Home() {
     if (selectedChatId) {
       window.history.pushState({}, '', `/chat/${selectedChatId}`);
     } else {
-      window.history.pushState({}, '', '/new');
+      window.history.pushState({}, '', '/');
     }
   }, [selectedChatId]);
 

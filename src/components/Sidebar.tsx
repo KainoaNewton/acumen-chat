@@ -79,7 +79,7 @@ export function Sidebar({
             onClick={() => {
               onNewChat();
               // Update URL without navigation
-              window.history.pushState({}, '', '/new');
+              window.history.pushState({}, '', '/');
             }}
             className="w-[232px] h-[40px] rounded-full flex items-center justify-between px-3 bg-[#191A1A] border border-[#2F3031] hover:border-[#24B2C6] hover:bg-[#191A1A] text-[#8C9191]"
             variant="secondary"
