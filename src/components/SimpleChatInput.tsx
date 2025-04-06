@@ -20,7 +20,7 @@ export function SimpleChatInput({
   isLoading = false,
 }: SimpleChatInputProps) {
   const [message, setMessage] = useState('');
-  const [activeProviders, setActiveProviders] = useState<Record<string, boolean>>({});
+  const [activeProviders, setActiveProviders] = useState<Record<string, boolean>>({ default: true });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
   
@@ -31,6 +31,9 @@ export function SimpleChatInput({
     if (savedActiveProviders) {
       const parsedActiveProviders = JSON.parse(savedActiveProviders);
       setActiveProviders(parsedActiveProviders);
+    } else {
+      // If no providers are saved, keep the default enabled state
+      setActiveProviders({ default: true });
     }
   }, []);
 

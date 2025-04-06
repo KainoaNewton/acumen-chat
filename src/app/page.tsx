@@ -91,7 +91,7 @@ const HeroSection = ({
 }) => {
   const [input, setInput] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [activeProviders, setActiveProviders] = useState<Record<string, boolean>>({});
+  const [activeProviders, setActiveProviders] = useState<Record<string, boolean>>({ default: true });
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const router = useRouter();
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -104,6 +104,9 @@ const HeroSection = ({
     if (savedActiveProviders) {
       const parsedActiveProviders = JSON.parse(savedActiveProviders);
       setActiveProviders(parsedActiveProviders);
+    } else {
+      // If no providers are saved, keep the default enabled state
+      setActiveProviders({ default: true });
     }
     
     if (savedApiKeys) {

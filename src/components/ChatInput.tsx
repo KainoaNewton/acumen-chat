@@ -32,7 +32,7 @@ export function ChatInput({
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [activeProviders, setActiveProviders] = useState<Record<string, boolean>>({});
+  const [activeProviders, setActiveProviders] = useState<Record<string, boolean>>({ default: true });
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [allModels, setAllModels] = useState<Model[]>([]);
   const router = useRouter();
@@ -58,6 +58,9 @@ export function ChatInput({
     if (savedActiveProviders) {
       const parsedActiveProviders = JSON.parse(savedActiveProviders);
       setActiveProviders(parsedActiveProviders);
+    } else {
+      // If no providers are saved, keep the default enabled state
+      setActiveProviders({ default: true });
     }
     
     if (savedApiKeys) {
