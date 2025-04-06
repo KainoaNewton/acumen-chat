@@ -23,10 +23,16 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Model } from '@/types/chat';
-import { Plus, Trash2, FileText, Eye, Link2, Loader2, ChevronDown, Key, Check, Pencil, Star } from 'lucide-react';
+import { Plus, Trash2, FileText, Eye, Link2, Loader2, ChevronDown, Key, Check, Pencil, Star, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { providers } from '@/lib/providers';
 import { storage } from '@/lib/storage';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface ModelsTabProps {
   models: Model[];
@@ -470,11 +476,34 @@ export function ModelsTab({ models: propModels, onAddModel, onDeleteModel }: Mod
                     <span className="text-xl" role="img" aria-label="provider icon">
                       {getProviderIcon(provider.id)}
                     </span>
-                    <h3 className={`text-lg font-medium ${
-                      isActive ? 'text-white' : 'text-muted-foreground'
-                    }`}>
-                      {provider.name}
-                    </h3>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className={`text-lg font-medium ${
+                          isActive ? 'text-white' : 'text-muted-foreground'
+                        }`}>
+                          {provider.name}
+                        </h3>
+                        {provider.apiKeyUrl && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <a 
+                                  href={provider.apiKeyUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-zinc-400 hover:text-zinc-100 transition-colors"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Get {provider.name} API key</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                    </div>
                     <ChevronDown className={`w-4 h-4 transition-transform ${
                       isOpen ? 'transform rotate-180' : ''
                     } ${isActive ? 'text-white/60' : 'text-muted-foreground/60'}`} />

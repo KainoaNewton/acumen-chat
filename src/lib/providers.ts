@@ -19,12 +19,14 @@ export interface Provider {
   validateApiKey: (apiKey: string, baseUrl?: string) => Promise<boolean>;
   getModels: (apiKey: string) => AIModel[];
   isCompatible?: boolean;
+  apiKeyUrl: string; // URL where users can get their API key
 }
 
 export const providers: Provider[] = [
   {
     id: 'google',
     name: 'Google AI',
+    apiKeyUrl: 'https://makersuite.google.com/app/apikey',
     validateApiKey: async (apiKey: string) => {
       try {
         console.log('[Provider] Validating Google AI API key');
@@ -90,6 +92,7 @@ export const providers: Provider[] = [
   {
     id: 'anthropic',
     name: 'Anthropic',
+    apiKeyUrl: 'https://console.anthropic.com/account/keys',
     validateApiKey: async (apiKey: string) => {
       try {
         const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -139,6 +142,7 @@ export const providers: Provider[] = [
   {
     id: 'openai',
     name: 'OpenAI',
+    apiKeyUrl: 'https://platform.openai.com/api-keys',
     validateApiKey: async (apiKey: string) => {
       try {
         const response = await fetch('https://api.openai.com/v1/models', {
@@ -201,6 +205,7 @@ export const providers: Provider[] = [
   {
     id: 'mistral',
     name: 'Mistral AI',
+    apiKeyUrl: 'https://console.mistral.ai/api-keys',
     validateApiKey: async (apiKey: string) => {
       try {
         const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
@@ -256,6 +261,7 @@ export const providers: Provider[] = [
   {
     id: 'xai',
     name: 'xAI',
+    apiKeyUrl: 'https://platform.groq.com/keys',
     validateApiKey: async (apiKey: string) => {
       try {
         const response = await fetch('https://api.groq.com/openai/v1/models', {
@@ -290,6 +296,7 @@ export const providers: Provider[] = [
   {
     id: 'perplexity',
     name: 'Perplexity AI',
+    apiKeyUrl: 'https://www.perplexity.ai/settings/api',
     validateApiKey: async (apiKey: string) => {
       try {
         const response = await fetch('https://api.perplexity.ai/models', {
@@ -331,6 +338,7 @@ export const providers: Provider[] = [
   {
     id: 'openai-compatible',
     name: 'OpenAI Compatible',
+    apiKeyUrl: '',
     isCompatible: true,
     validateApiKey: async (apiKey: string, baseUrl?: string) => {
       if (!baseUrl) return false;
