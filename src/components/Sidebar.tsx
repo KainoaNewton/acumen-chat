@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Settings, Plus, Pencil, Trash2, Check, PanelLeft } from 'lucide-react';
+import { Settings, Plus, Pencil, Trash2, Check, PanelLeft, SquarePen } from 'lucide-react';
 import { Chat } from '@/types/chat';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -51,17 +51,31 @@ export function Sidebar({
     <>
       {/* Animated toggle button that transitions between states */}
       <div className="fixed top-4 left-4 z-50">
-        <button
-          onClick={() => onCollapsedChange(!isCollapsed)}
-          className={cn(
-            "p-2 rounded-lg text-white hover:bg-[#2d2f2f] transition-all duration-300",
-            isCollapsed
-              ? "bg-[#202222]"
-              : "bg-transparent transform translate-x-[180px]"
-          )}
-        >
-          <PanelLeft className="w-5 h-5" />
-        </button>
+        <div className={cn(
+          "flex gap-1 rounded-xl bg-[#141414] p-1.5 transition-all duration-300",
+          !isCollapsed && "transform translate-x-[180px] bg-transparent"
+        )}>
+          <button
+            onClick={() => onCollapsedChange(!isCollapsed)}
+            className="p-2 text-white hover:bg-[#2d2f2f] transition-all duration-300 rounded-lg"
+          >
+            <PanelLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => {
+              onNewChat();
+              window.history.pushState({}, '', '/');
+            }}
+            className={cn(
+              "p-2 text-white hover:bg-[#2d2f2f] transition-all duration-300 rounded-lg",
+              isCollapsed
+                ? "translate-x-0 opacity-100"
+                : "translate-x-[40px] opacity-0 pointer-events-none"
+            )}
+          >
+            <SquarePen className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className={cn(
