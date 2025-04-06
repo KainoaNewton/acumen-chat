@@ -211,15 +211,15 @@ const HeroSection = ({
           >
             <div className="flex items-center gap-2">
               <span className="text-xl" role="img" aria-label="provider icon">
-                {getProviderIcon(selectedModel?.provider)}
+                {getProviderIcon(model.provider)}
               </span>
-              <span className="font-medium">{selectedModel?.name}</span>
+              <span className="font-medium">{model.name}</span>
             </div>
           </button>
         ))}
       </div>
     );
-  }, [availableModels, selectedModelId, onSelectModel, getProviderIcon, selectedModel]);
+  }, [availableModels, selectedModelId, onSelectModel, getProviderIcon]);
 
   return (
     <div className="h-full flex flex-col items-center justify-center p-4">
