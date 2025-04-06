@@ -12,7 +12,7 @@ import { providers } from '@/lib/providers';
 import { toast } from 'sonner';
 import { MarkdownContent } from '@/components/MarkdownContent';
 import { Button } from '@/components/ui/button';
-import { Copy, RefreshCw, ArrowLeft, ArrowRight, Undo2, History, ChevronDown, Eye, FileText, Globe } from 'lucide-react';
+import { Copy, RefreshCw, ArrowLeft, ArrowRight, Undo2, History, ChevronDown, Eye, FileText, Globe, User, X, Sparkles, CornerDownLeft, Laptop, Settings as SettingsIcon } from 'lucide-react';
 import React from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
@@ -67,6 +67,7 @@ const HeroSection = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [activeProviders, setActiveProviders] = useState<Record<string, boolean>>({});
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const router = useRouter();
 
   // Load active providers and API keys on mount
   useEffect(() => {
@@ -74,8 +75,10 @@ const HeroSection = ({
     const savedApiKeys = localStorage.getItem('apiKeys');
 
     if (savedActiveProviders) {
-      setActiveProviders(JSON.parse(savedActiveProviders));
+      const parsedActiveProviders = JSON.parse(savedActiveProviders);
+      setActiveProviders(parsedActiveProviders);
     }
+    
     if (savedApiKeys) {
       setApiKeys(JSON.parse(savedApiKeys));
     }
@@ -133,6 +136,9 @@ const HeroSection = ({
 
   // Find selected model from available models
   const selectedModel = availableModels.find((m) => m.id === selectedModelId);
+  
+  // Check if we have any active providers
+  const hasActiveProviders = Object.values(activeProviders).some(isActive => isActive);
 
   // Get provider icon
   const getProviderIcon = React.useCallback((provider: string | undefined) => {
@@ -152,7 +158,7 @@ const HeroSection = ({
       case 'perplexity':
         return '🔍';
       default:
-        return '��';
+        return '';
     }
   }, []);
 
@@ -190,8 +196,28 @@ const HeroSection = ({
       <h1 className="text-4xl font-bold text-white mb-8">How can I help you?</h1>
       <div className="w-full max-w-[900px]">
         <div className="flex flex-col items-center mb-0 w-full">
-          <div className="flex flex-col rounded-[24px] bg-[#202222] border border-[#343636] shadow-[0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden w-[600px] min-w-fit max-w-full transition-all duration-200 mb-8 mx-auto">
-            <div className="flex px-4 py-1 relative">
+          <div className={`flex flex-col rounded-[24px] bg-[#202222] border border-[#343636] shadow-[0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden w-[600px] min-w-fit max-w-full transition-all duration-200 mb-8 mx-auto relative ${!hasActiveProviders ? 'cursor-not-allowed' : ''}`}>
+            {/* Add a semi-transparent overlay when no providers active */}
+            {!hasActiveProviders && (
+              <div className="absolute inset-0 bg-black/30 pointer-events-none z-[1]"></div>
+            )}
+            
+            {/* Add the warning message overlay */}
+            {!hasActiveProviders && (
+              <div className="absolute inset-0 flex items-center justify-center z-[5] pointer-events-none">
+                <div className="flex items-center gap-2 pointer-events-auto">
+                  <span className="text-[#FF4545] font-medium">No model provider configure.</span>
+                  <button 
+                    onClick={() => router.push('/settings')} 
+                    className="text-white underline hover:text-[#FF4545] transition-colors"
+                  >
+                    Configure providers
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            <div className={`flex px-4 py-1 relative ${!hasActiveProviders ? 'pointer-events-none' : ''}`}>
               <textarea
                 value={input}
                 onChange={(e) => {
@@ -211,17 +237,19 @@ const HeroSection = ({
                   }
                 }}
                 placeholder="Ask anything..."
-                className="w-full min-h-[42px] max-h-[420px] bg-transparent text-white text-[15px] placeholder:text-[#8C9191] focus:outline-none resize-none overflow-y-auto py-3 pr-4 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:transparent [&::-webkit-scrollbar-thumb]:bg-[#4A5252]"
+                className={`w-full min-h-[42px] max-h-[420px] bg-transparent text-white text-[15px] placeholder:text-[#8C9191] focus:outline-none resize-none overflow-y-auto py-3 pr-4 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:transparent [&::-webkit-scrollbar-thumb]:bg-[#4A5252] ${!hasActiveProviders ? 'opacity-40 text-zinc-500 placeholder:text-zinc-600 relative z-0 cursor-not-allowed' : ''}`}
+                disabled={!hasActiveProviders}
                 rows={1}
               />
             </div>
 
-            <div className="flex items-center justify-between px-4 pb-4 h-12">
+            <div className={`flex items-center justify-between px-4 pb-4 h-12 ${!hasActiveProviders ? 'pointer-events-none' : ''}`}>
               <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="h-9 px-3 gap-2 text-[15px] font-medium text-white bg-[#202222] rounded-lg min-w-[140px] justify-start border border-[#343636] shrink-0"
+                    className={`h-9 px-3 gap-2 text-[15px] font-medium bg-[#202222] rounded-lg min-w-[140px] justify-start border border-[#343636] shrink-0 ${!hasActiveProviders ? 'opacity-40 text-zinc-500 relative z-0 cursor-not-allowed' : 'text-white'}`}
+                    disabled={!hasActiveProviders}
                   >
                     {selectedModel ? (
                       <div className="flex items-center gap-2">
@@ -246,8 +274,8 @@ const HeroSection = ({
               </DropdownMenu>
               <button
                 type="submit"
-                className="h-9 w-9 rounded-full bg-white flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!input.trim()}
+                className={`h-9 w-9 rounded-full flex items-center justify-center transition-colors disabled:cursor-not-allowed relative z-0 ${!hasActiveProviders ? 'bg-zinc-500 opacity-40 cursor-not-allowed' : 'bg-white hover:bg-white/90'}`}
+                disabled={!input.trim() || !hasActiveProviders}
                 onClick={handleSubmit}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(-90deg)' }}>
@@ -255,34 +283,6 @@ const HeroSection = ({
                 </svg>
               </button>
             </div>
-          </div>
-
-          {/* Prompt Examples */}
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => setInput("Summarize this for me:")}
-              className="flex items-center px-4 py-2 rounded-full bg-[#f97316]/10 hover:bg-[#f97316]/20 transition-colors text-[13px] text-[#f97316]"
-            >
-              Summarize
-            </button>
-            <button
-              onClick={() => setInput("Help me write a")}
-              className="flex items-center px-4 py-2 rounded-full bg-[#a78bfa]/10 hover:bg-[#a78bfa]/20 transition-colors text-[13px] text-[#a78bfa]"
-            >
-              Help me write
-            </button>
-            <button
-              onClick={() => setInput("Make a plan to")}
-              className="flex items-center px-4 py-2 rounded-full bg-[#4ade80]/10 hover:bg-[#4ade80]/20 transition-colors text-[13px] text-[#4ade80]"
-            >
-              Make a plan
-            </button>
-            <button
-              onClick={() => setInput("Help me code a")}
-              className="flex items-center px-4 py-2 rounded-full bg-[#7dd3fc]/10 hover:bg-[#7dd3fc]/20 transition-colors text-[13px] text-[#7dd3fc]"
-            >
-              Code
-            </button>
           </div>
         </div>
       </div>
