@@ -51,6 +51,32 @@ const StreamingContent = ({ content }: { content: string }) => {
   );
 };
 
+// Add Prompt Examples component
+const PromptExamples = ({ onSelect }: { onSelect: (prompt: string) => void }) => {
+  const examples = [
+    { text: "Summarize", color: "bg-[#3D2813] text-[#FF8C38]", prompt: "Summarize" },
+    { text: "Help me write", color: "bg-[#2D1D42] text-[#A78BFA]", prompt: "Help me write" },
+    { text: "Make a plan", color: "bg-[#122D25] text-[#4ADE80]", prompt: "Make a plan" },
+    { text: "Code", color: "bg-[#0D2C40] text-[#7DD3FC]", prompt: "Help me code" }
+  ];
+
+  return (
+    <div className="w-full max-w-[600px]">
+      <div className="flex gap-3 justify-center">
+        {examples.map((example, index) => (
+          <button
+            key={index}
+            className={`px-4 py-2 rounded-full text-base font-normal ${example.color} hover:opacity-90 transition-opacity`}
+            onClick={() => onSelect(example.prompt)}
+          >
+            {example.text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // Update the hero section with a large prompt box
 const HeroSection = ({
   onSendMessage,
@@ -68,6 +94,7 @@ const HeroSection = ({
   const [activeProviders, setActiveProviders] = useState<Record<string, boolean>>({});
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const router = useRouter();
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Load active providers and API keys on mount
   useEffect(() => {
@@ -181,15 +208,15 @@ const HeroSection = ({
           >
             <div className="flex items-center gap-2">
               <span className="text-xl" role="img" aria-label="provider icon">
-                {getProviderIcon(model.provider)}
+                {getProviderIcon(selectedModel?.provider)}
               </span>
-              <span className="font-medium">{model.name}</span>
+              <span className="font-medium">{selectedModel?.name}</span>
             </div>
           </button>
         ))}
       </div>
     );
-  }, [availableModels, selectedModelId, onSelectModel, getProviderIcon]);
+  }, [availableModels, selectedModelId, onSelectModel, getProviderIcon, selectedModel]);
 
   return (
     <div className="h-full flex flex-col items-center justify-center p-4">
@@ -219,6 +246,7 @@ const HeroSection = ({
             
             <div className={`flex px-4 py-1 relative ${!hasActiveProviders ? 'pointer-events-none' : ''}`}>
               <textarea
+                ref={textareaRef}
                 value={input}
                 onChange={(e) => {
                   setInput(e.target.value);
@@ -283,6 +311,18 @@ const HeroSection = ({
                 </svg>
               </button>
             </div>
+          </div>
+          
+          {/* Add prompt examples */}
+          <div className={`${!hasActiveProviders ? 'opacity-40 pointer-events-none' : ''}`}>
+            <PromptExamples 
+              onSelect={(prompt) => {
+                setInput(prompt);
+                if (textareaRef.current) {
+                  textareaRef.current.focus();
+                }
+              }} 
+            />
           </div>
         </div>
       </div>
@@ -390,39 +430,14 @@ export default function Home() {
     // Clear messages initially to prevent any stale data
     setMessages([]);
 
-    // Add this code to handle the initial loading of the selected chat
-    // and restore chat messages from localStorage
-    if (savedChats.length > 0) {
-      // Check if there was a previously selected chat in localStorage
-      const lastSelectedChatId = localStorage.getItem('lastSelectedChatId');
-      if (lastSelectedChatId && savedChats.some(chat => chat.id === lastSelectedChatId)) {
-        console.log('[Home] Restoring last selected chat:', lastSelectedChatId);
-        // Update ref to match the selected chat
-        lastSelectedChatRef.current = lastSelectedChatId;
-        setSelectedChatId(lastSelectedChatId);
-        const lastSelectedChat = savedChats.find(chat => chat.id === lastSelectedChatId);
-        if (lastSelectedChat?.messages) {
-          // Restore messages from the saved chat
-          setUIMessages(lastSelectedChat.messages);
-          // Set messages with a slight delay to ensure loading is complete
-          setTimeout(() => {
-            setMessages(lastSelectedChat.messages);
-          }, 10);
-        }
-      } else {
-        // If no last selected chat or it doesn't exist anymore, select the first chat
-        console.log('[Home] Setting first chat as selected');
-        // Update ref to match the selected chat
-        lastSelectedChatRef.current = savedChats[0].id;
-        setSelectedChatId(savedChats[0].id);
-        if (savedChats[0]?.messages) {
-          setUIMessages(savedChats[0].messages);
-          // Set messages with a slight delay to ensure loading is complete
-          setTimeout(() => {
-            setMessages(savedChats[0].messages);
-          }, 10);
-        }
-      }
+    // Update: Do not automatically select the last used chat - leave user on new conversation page
+    // Store the chats but don't set a selected chat ID, which will show the new conversation hero
+    console.log('[Home] Not restoring last chat - showing new conversation hero instead');
+    // We still keep track of the last selected chat in localStorage for future reference
+    const lastSelectedChatId = localStorage.getItem('lastSelectedChatId');
+    if (lastSelectedChatId) {
+      // Only update the ref, but don't set it as active
+      lastSelectedChatRef.current = lastSelectedChatId;
     }
   }, []);
 
@@ -1631,19 +1646,13 @@ export default function Home() {
     });
   }, [settings.models]);
 
-  // Redirect to /new if there are no chats
+  // Keep URL in sync with selected chat, but only when explicitly selected by user
   useEffect(() => {
-    const savedChats = storage.getChats();
-    if (savedChats.length === 0) {
-      router.push('/new');
-    }
-  }, [router]);
-
-  // Keep URL in sync with selected chat
-  useEffect(() => {
-    if (selectedChatId) {
+    if (selectedChatId && lastSelectedChatRef.current === selectedChatId) {
+      // Only update URL if user explicitly selected this chat (not on initial load)
       window.history.pushState({}, '', `/chat/${selectedChatId}`);
-    } else {
+    } else if (!selectedChatId) {
+      // Always keep root URL when no chat is selected
       window.history.pushState({}, '', '/');
     }
   }, [selectedChatId]);
