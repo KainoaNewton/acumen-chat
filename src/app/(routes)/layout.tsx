@@ -2,14 +2,13 @@
 
 import { useEffect } from 'react';
 
-export default function SettingsLayout({
+export default function RouteLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Use useEffect to manage class toggling when component mounts/unmounts
   useEffect(() => {
-    // Remove the clip-overflow class from html when in the settings page
+    // Remove the clip-overflow class from html when in these routes
     document.documentElement.classList.remove('clip-overflow');
     document.documentElement.classList.add('allow-overflow');
 
@@ -20,5 +19,5 @@ export default function SettingsLayout({
     };
   }, []);
 
-  return children;
+  return <div className="min-h-screen bg-background">{children}</div>;
 } 

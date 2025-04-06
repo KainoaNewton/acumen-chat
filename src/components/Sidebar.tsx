@@ -76,7 +76,11 @@ export function Sidebar({
 
         <div className="p-3 flex justify-center">
           <Button
-            onClick={onNewChat}
+            onClick={() => {
+              onNewChat();
+              // Update URL without navigation
+              window.history.pushState({}, '', '/new');
+            }}
             className="w-[232px] h-[40px] rounded-full flex items-center justify-between px-3 bg-[#191A1A] border border-[#2F3031] hover:border-[#24B2C6] hover:bg-[#191A1A] text-[#8C9191]"
             variant="secondary"
           >
@@ -131,6 +135,8 @@ export function Sidebar({
                       // Only call onSelectChat if this isn't already the selected chat
                       if (selectedChatId !== chat.id) {
                         onSelectChat(chat.id);
+                        // Update URL without navigation
+                        window.history.pushState({}, '', `/chat/${chat.id}`);
                       }
                     }}
                     className="w-full text-left px-3 py-2 text-white truncate pr-16"
