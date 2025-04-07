@@ -1,33 +1,29 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { storage } from '@/lib/storage';
-import React from 'react';
-
-export default function ChatPage({ params }: { params: { id: string } }) {
-  const router = useRouter();
-  const chatId = React.use(Promise.resolve(params.id));
-  
-  useEffect(() => {
-    // Check if the chat exists
-    const chats = storage.getChats();
-    const chat = chats.find(c => c.id === chatId);
-    
-    if (!chat) {
-      // If chat doesn't exist, redirect to home
-      router.push('/');
-      return;
-    }
-    
-    // Store this as the last selected chat
-    localStorage.setItem('lastSelectedChatId', chatId);
-  }, [chatId, router]);
-
-  // Redirect to home page which will handle the chat display
-  useEffect(() => {
-    router.push('/');
-  }, [router]);
-
-  return null; // This page acts as a router only
+export default async function ChatPage({ params }: { params: { id: string } }) {
+  // Since we're just redirecting and setting localStorage, we can do this on the client
+  // using a small script
+  return (
+    <>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            try {
+              localStorage.setItem('lastSelectedChatId', '${params.id}');
+              window.location.href = '/';
+            } catch (e) {
+              window.location.href = '/';
+            }
+          `
+        }}
+      />
+      <div className="flex h-screen items-center justify-center bg-[#202222]">
+        <div className="flex items-center space-x-2">
+          <div className="h-2 w-2 animate-pulse rounded-full bg-white"></div>
+          <div className="h-2 w-2 animate-pulse rounded-full bg-white" style={{ animationDelay: '0.2s' }}></div>
+          <div className="h-2 w-2 animate-pulse rounded-full bg-white" style={{ animationDelay: '0.4s' }}></div>
+        </div>
+      </div>
+    </>
+  );
 } 

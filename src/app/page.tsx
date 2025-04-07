@@ -211,9 +211,9 @@ const HeroSection = ({
           >
             <div className="flex items-center gap-2">
               <span className="text-xl" role="img" aria-label="provider icon">
-                {getProviderIcon(model.provider)}
+                {getProviderIcon(selectedModel?.provider)}
               </span>
-              <span className="font-medium">{model.name}</span>
+              <span className="font-medium">{selectedModel?.name}</span>
             </div>
           </button>
         ))}
@@ -1801,26 +1801,24 @@ export default function Home() {
                                       </button>
                                       {openDropdownId === message.id && (
                                         <div
-                                          className="absolute left-0 mt-1 w-40 bg-[#0D0D0D] rounded-lg shadow-lg border border-[#121212] z-10 backdrop-blur-xl"
+                                          className="absolute left-0 mt-1 w-[120px] bg-[#202222] rounded-lg shadow-lg border border-[#343636] z-10 p-1 space-y-0.5"
                                         >
-                                          <div className="py-1">
-                                            {message.versions.map((version, index) => (
-                                              <button
-                                                key={version.id}
-                                                onClick={() => {
-                                                  handleVersionSelect(message, index);
-                                                  setOpenDropdownId(null);
-                                                }}
-                                                className={`w-full text-left px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors ${
-                                                  index === message.currentVersionIndex
-                                                    ? 'bg-gray-800/50'
-                                                    : 'hover:bg-gray-800/50'
-                                                }`}
-                                              >
-                                                Version {index + 1}
-                                              </button>
-                                            ))}
-                                          </div>
+                                          {message.versions.map((version, index) => (
+                                            <button
+                                              key={version.id}
+                                              onClick={() => {
+                                                handleVersionSelect(message, index);
+                                                setOpenDropdownId(null);
+                                              }}
+                                              className={`w-full text-left px-2 py-1.5 text-sm text-white rounded-md transition-colors ${
+                                                index === message.currentVersionIndex
+                                                  ? 'bg-[#2D2F2F]'
+                                                  : 'bg-[#202222] hover:bg-[#22292A]'
+                                              }`}
+                                            >
+                                              Version {index + 1}
+                                            </button>
+                                          ))}
                                         </div>
                                       )}
                                     </div>
